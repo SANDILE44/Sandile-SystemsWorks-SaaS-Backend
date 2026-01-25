@@ -1,0 +1,4 @@
+
+
+GET http://localhost:5000/api/users/dashboard
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5NzEwYjY0NjBjMmFiYmVmMzg5NjE3YSIsImlhdCI6MTc2OTA0MDQyMiwiZXhwIjoxNzY5NjQ1MjIyfQ.l0_9jUz8DliEuAzWAGauZDqgQp_h8wBP8wPk830JKnQ
