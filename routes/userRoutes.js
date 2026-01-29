@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const User = require('../models/User');
 const auth = require('../middleware/auth');
@@ -30,7 +31,7 @@ router.post('/signup', async (req, res) => {
       email,
       passwordHash,
       hasPaid: false,
-      trialEnd: new Date(Date.now() + 3*24*60*60*1000) // 3-day trial
+      trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
     });
 
     const token = jwt.sign(
@@ -43,7 +44,7 @@ router.post('/signup', async (req, res) => {
       message: 'User registered (3-day free trial)',
       token,
       userId: user._id,
-      trialEnd: user.trialEnd
+      trialEnd: user.trialEnd,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -81,8 +82,73 @@ router.post('/login', async (req, res) => {
       message: 'Login successful',
       token,
       hasPaid: user.hasPaid,
-      trialEnd: user.trialEnd
+      trialEnd: user.trialEnd,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ====================
+// FORGOT PASSWORD
+// ====================
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+
+  // Always respond the same (avoid leaking if email exists)
+  const safeMsg = { message: 'If the email exists, a reset link was sent.' };
+
+  if (!email) return res.json(safeMsg);
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) return res.json(safeMsg);
+
+    const token = crypto.randomBytes(32).toString('hex');
+
+    user.resetToken = token;
+    user.resetTokenExpiry = Date.now() + 30 * 60 * 1000; // 30 minutes
+    await user.save();
+
+    // ✅ You must send an email here.
+    // Example reset URL:
+    // const resetUrl = `${process.env.FRONTEND_RESET_URL}?token=${token}`;
+    // await sendResetEmail(user.email, resetUrl);
+
+    return res.json(safeMsg);
+  } catch (err) {
+    return res.json(safeMsg);
+  }
+});
+
+// ====================
+// RESET PASSWORD
+// ====================
+router.post('/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Token and new password required' });
+  }
+
+  try {
+    const user = await User.findOne({
+      resetToken: token,
+      resetTokenExpiry: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    // ✅ IMPORTANT: your schema uses passwordHash
+    user.passwordHash = await bcrypt.hash(password, 10);
+    user.resetToken = undefined;
+    user.resetTokenExpiry = undefined;
+
+    await user.save();
+
+    res.json({ message: 'Password reset successful' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
