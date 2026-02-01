@@ -5,6 +5,8 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
+console.log('✅ DEPLOY MARKER: 2026-02-01 v3');
+
 const PORT = process.env.PORT || 10000;
 
 // =======================
@@ -57,6 +59,10 @@ app.get('/test-db', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get('/_deploy-check', (req, res) => {
+  res.send('deploy-check-2026-02-01-v3');
 });
 
 // =======================

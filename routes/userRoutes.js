@@ -193,4 +193,15 @@ router.get('/dashboard', auth, paid, (req, res) => {
   return res.json({ message: 'Welcome to paid dashboard' });
 });
 
+// ====================
+// DEBUG (TEMPORARY)
+// ====================
+router.get('/_debug-user-model', (req, res) => {
+  res.json({
+    typeofUser: typeof User,
+    hasFindOne: typeof User?.findOne,
+    hasFindById: typeof User?.findById,
+  });
+});
+
 module.exports = router;
