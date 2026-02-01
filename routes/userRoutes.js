@@ -1,3 +1,4 @@
+// routes/userRoutes.js
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -10,6 +11,13 @@ const paid = require('../middleware/paid');
 
 const { sendResetEmail } = require('../utils/sendResetEmail');
 
+// helper
+function signToken(userId) {
+  return jwt.sign({ id: userId }, process.env.JWT_SECRET || 'secret123', {
+    expiresIn: '7d',
+  });
+}
+
 // ====================
 // SIGNUP
 // ====================
@@ -21,37 +29,32 @@ router.post('/signup', async (req, res) => {
   }
 
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    const cleanEmail = email.toLowerCase().trim();
+
+    const existingUser = await User.findOne({ email: cleanEmail });
+    if (existingUser)
       return res.status(400).json({ error: 'User already exists' });
-    }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      name,
-      email,
+      name: name.trim(),
+      email: cleanEmail,
       passwordHash,
       hasPaid: false,
-      trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
     });
 
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET || 'secret123',
-      {
-        expiresIn: '7d',
-      }
-    );
+    const token = signToken(user._id);
 
-    res.status(201).json({
+    return res.status(201).json({
       message: 'User registered (3-day free trial)',
       token,
       userId: user._id,
       trialEnd: user.trialEnd,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -66,38 +69,34 @@ router.post('/login', async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ email });
+    const cleanEmail = email.toLowerCase().trim();
+
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) return res.status(400).json({ error: 'Invalid credentials' });
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET || 'secret123',
-      {
-        expiresIn: '7d',
-      }
-    );
+    const token = signToken(user._id);
 
-    res.json({
+    return res.json({
       message: 'Login successful',
       token,
       hasPaid: user.hasPaid,
       trialEnd: user.trialEnd,
+      subscriptionEnd: user.subscriptionEnd || null,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
 // ====================
-// FORGOT PASSWORD (NOW SENDS EMAIL)
+// FORGOT PASSWORD
 // ====================
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
 
-  // Always respond same to avoid leaking user existence
   const safeMsg = { message: 'If the email exists, a reset link was sent.' };
   if (!email) return res.json(safeMsg);
 
@@ -112,14 +111,15 @@ router.post('/forgot-password', async (req, res) => {
     await user.save();
 
     const base = process.env.FRONTEND_RESET_URL;
-    // Example: https://sandile44.github.io/Sandile-SystemsWorks-SaaS-Frontend/reset-password.html
+    if (!base) return res.json(safeMsg);
+
     const resetUrl = `${base}?token=${token}`;
 
+    // If domain is not verified yet, this may fail silently depending on your implementation.
     await sendResetEmail(user.email, resetUrl);
 
     return res.json(safeMsg);
   } catch (err) {
-    // Keep response generic for security
     return res.json(safeMsg);
   }
 });
@@ -128,9 +128,9 @@ router.post('/forgot-password', async (req, res) => {
 // RESET PASSWORD
 // ====================
 router.post('/reset-password', async (req, res) => {
-  const { token, password } = req.body;
+  const { token, newPassword } = req.body;
 
-  if (!token || !password) {
+  if (!token || !newPassword) {
     return res.status(400).json({ error: 'Token and new password required' });
   }
 
@@ -140,19 +140,18 @@ router.post('/reset-password', async (req, res) => {
       resetTokenExpiry: { $gt: new Date() },
     });
 
-    if (!user) {
+    if (!user)
       return res.status(400).json({ error: 'Invalid or expired token' });
-    }
 
-    user.passwordHash = await bcrypt.hash(password, 10);
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
     user.resetToken = null;
     user.resetTokenExpiry = null;
 
     await user.save();
 
-    res.json({ message: 'Password reset successful' });
+    return res.json({ message: 'Password reset successful' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -161,34 +160,12 @@ router.post('/reset-password', async (req, res) => {
 // ====================
 router.get('/profile', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-passwordHash');
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    res.json({ user });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ====================
-// PAID-ONLY ROUTE (TEST)
-// ====================
-router.get('/dashboard', auth, paid, (req, res) => {
-  res.json({ message: 'Welcome to paid dashboard' });
-});
-
-module.exports = router;
-
-//Time And recent dashboard
-// routes/authRoutes.js (PROFILE)
-router.get('/profile', auth, async (req, res) => {
-  try {
     const user = await User.findById(req.user.id).select(
       'name email hasPaid trialEnd subscriptionEnd recentCalculators'
     );
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    res.json({
+    return res.json({
       user: {
         name: user.name,
         email: user.email,
@@ -199,6 +176,15 @@ router.get('/profile', auth, async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
+
+// ====================
+// PAID/TRIAL ACCESS TEST
+// ====================
+router.get('/dashboard', auth, paid, (req, res) => {
+  return res.json({ message: 'Welcome to paid dashboard' });
+});
+
+module.exports = router;

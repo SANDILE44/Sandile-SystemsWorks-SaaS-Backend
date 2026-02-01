@@ -19,7 +19,7 @@ app.use(
 // =======================
 // Standard Middleware
 // =======================
-app.use(cors());
+app.use(cors({ origin: '*', credentials: false }));
 app.use(express.json());
 
 // =======================
