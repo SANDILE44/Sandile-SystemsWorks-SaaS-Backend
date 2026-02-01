@@ -8,6 +8,8 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 const paid = require('../middleware/paid');
 
+const { sendResetEmail } = require('../utils/sendResetEmail');
+
 // ====================
 // SIGNUP
 // ====================
@@ -37,7 +39,9 @@ router.post('/signup', async (req, res) => {
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET || 'secret123',
-      { expiresIn: '7d' }
+      {
+        expiresIn: '7d',
+      }
     );
 
     res.status(201).json({
@@ -63,19 +67,17 @@ router.post('/login', async (req, res) => {
 
   try {
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid credentials' });
-    }
+    if (!user) return res.status(400).json({ error: 'Invalid credentials' });
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid credentials' });
-    }
+    if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
     const token = jwt.sign(
       { id: user._id },
       process.env.JWT_SECRET || 'secret123',
-      { expiresIn: '7d' }
+      {
+        expiresIn: '7d',
+      }
     );
 
     res.json({
@@ -90,33 +92,34 @@ router.post('/login', async (req, res) => {
 });
 
 // ====================
-// FORGOT PASSWORD
+// FORGOT PASSWORD (NOW SENDS EMAIL)
 // ====================
 router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
 
-  // Always respond the same (avoid leaking if email exists)
+  // Always respond same to avoid leaking user existence
   const safeMsg = { message: 'If the email exists, a reset link was sent.' };
-
   if (!email) return res.json(safeMsg);
 
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
     if (!user) return res.json(safeMsg);
 
     const token = crypto.randomBytes(32).toString('hex');
 
     user.resetToken = token;
-    user.resetTokenExpiry = Date.now() + 30 * 60 * 1000; // 30 minutes
+    user.resetTokenExpiry = new Date(Date.now() + 30 * 60 * 1000); // 30 mins
     await user.save();
 
-    // ✅ You must send an email here.
-    // Example reset URL:
-    // const resetUrl = `${process.env.FRONTEND_RESET_URL}?token=${token}`;
-    // await sendResetEmail(user.email, resetUrl);
+    const base = process.env.FRONTEND_RESET_URL;
+    // Example: https://sandile44.github.io/Sandile-SystemsWorks-SaaS-Frontend/reset-password.html
+    const resetUrl = `${base}?token=${token}`;
+
+    await sendResetEmail(user.email, resetUrl);
 
     return res.json(safeMsg);
   } catch (err) {
+    // Keep response generic for security
     return res.json(safeMsg);
   }
 });
@@ -134,17 +137,16 @@ router.post('/reset-password', async (req, res) => {
   try {
     const user = await User.findOne({
       resetToken: token,
-      resetTokenExpiry: { $gt: Date.now() },
+      resetTokenExpiry: { $gt: new Date() },
     });
 
     if (!user) {
       return res.status(400).json({ error: 'Invalid or expired token' });
     }
 
-    // ✅ IMPORTANT: your schema uses passwordHash
     user.passwordHash = await bcrypt.hash(password, 10);
-    user.resetToken = undefined;
-    user.resetTokenExpiry = undefined;
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
 
     await user.save();
 
@@ -155,14 +157,12 @@ router.post('/reset-password', async (req, res) => {
 });
 
 // ====================
-// AUTH-PROTECTED ROUTE
+// PROFILE
 // ====================
 router.get('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-passwordHash');
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
     res.json({ user });
   } catch (err) {
@@ -178,3 +178,27 @@ router.get('/dashboard', auth, paid, (req, res) => {
 });
 
 module.exports = router;
+
+//Time And recent dashboard
+// routes/authRoutes.js (PROFILE)
+router.get('/profile', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select(
+      'name email hasPaid trialEnd subscriptionEnd recentCalculators'
+    );
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json({
+      user: {
+        name: user.name,
+        email: user.email,
+        hasPaid: user.hasPaid,
+        trialEnd: user.trialEnd,
+        subscriptionEnd: user.subscriptionEnd,
+        recentCalculators: user.recentCalculators || [],
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});

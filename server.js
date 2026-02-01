@@ -5,7 +5,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
 // =======================
 // Webhook route (RAW BODY FIRST)
@@ -25,20 +25,18 @@ app.use(express.json());
 // =======================
 // MongoDB Connection
 // =======================
-const dbURI = process.env.DB_URI;
+const dbURI = process.env.MONGO_URI;
 
 if (!dbURI) {
-  console.error('❌ No MongoDB URI defined in .env');
-  process.exit(1);
+  console.warn('⚠️ MONGO_URI not found. Waiting for environment injection...');
+} else {
+  mongoose
+    .connect(dbURI)
+    .then(() => console.log('✅ MongoDB connected'))
+    .catch((err) => {
+      console.error('❌ MongoDB connection error:', err.message);
+    });
 }
-
-mongoose
-  .connect(dbURI)
-  .then(() => console.log('✅ MongoDB connected'))
-  .catch((err) => {
-    console.error('❌ MongoDB connection error:', err.message);
-    process.exit(1);
-  });
 
 // =======================
 // Health Check Routes
@@ -49,6 +47,10 @@ app.get('/', (req, res) => {
 
 app.get('/test-db', async (req, res) => {
   try {
+    if (!mongoose.connection.readyState) {
+      return res.status(503).json({ error: 'MongoDB not connected yet' });
+    }
+
     const adminDb = mongoose.connection.db.admin();
     const info = await adminDb.serverStatus();
     res.json({ message: 'MongoDB connected!', info });
@@ -61,13 +63,13 @@ app.get('/test-db', async (req, res) => {
 // API Routes
 // =======================
 app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/users', require('./routes/recentCalculators'));
 app.use('/api/payments', require('./routes/paymentRoutes'));
 app.use('/api/calculators', require('./routes/calculatorRoutes'));
 
 // =======================
-// Start Server
+// Start Server (LAST)
 // =======================
-app.listen(PORT, () =>
-  console.log(`🚀 Server running on port ${PORT}`)
-);
-
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});

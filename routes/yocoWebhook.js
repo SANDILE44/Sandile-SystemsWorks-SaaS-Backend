@@ -1,15 +1,14 @@
-// routes/yocoWebhook.js
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const User = require('../models/User');
+const { applyThirtyDaySubscription } = require('../utils/subscription');
 
 router.post('/', async (req, res) => {
   try {
     const signature = req.headers['x-yoco-signature'];
-    const payload = req.body; // raw body (express.raw)
+    const payload = req.body;
 
-    // Verify signature
     const hmac = crypto.createHmac('sha256', process.env.YOCO_WEBHOOK_SECRET);
     hmac.update(JSON.stringify(payload));
     const digest = hmac.digest('hex');
@@ -19,23 +18,24 @@ router.post('/', async (req, res) => {
       return res.sendStatus(400);
     }
 
-    // Filter only completed checkouts
-    if (payload.event && payload.event.type === 'checkout.completed') {
+    if (payload?.event?.type === 'checkout.completed') {
       const checkout = payload.event.data;
-      const userId = checkout.metadata.userId;
+      const userId = checkout?.metadata?.userId;
+
+      if (!userId) return res.sendStatus(200);
 
       const user = await User.findById(userId);
       if (user) {
-        user.hasPaid = true;
+        applyThirtyDaySubscription(user);
         await user.save();
-        console.log(`✅ User ${user.email} marked as paid`);
+        console.log(`✅ Subscription updated for ${user.email}`);
       }
     }
 
-    res.sendStatus(200); // acknowledge webhook
+    return res.sendStatus(200);
   } catch (err) {
     console.error('Webhook error:', err.message);
-    res.sendStatus(500);
+    return res.sendStatus(500);
   }
 });
 

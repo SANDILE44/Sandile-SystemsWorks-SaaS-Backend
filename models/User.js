@@ -1,31 +1,27 @@
-const mongoose = require('mongoose');
+// backend/middleware/paid.js
+const User = require('../models/User');
 
-const UserSchema = new mongoose.Schema(
-  {
-    name: { type: String, required: true },
+module.exports = async function paid(req, res, next) {
+  try {
+    if (!req.user?.id) return res.status(401).json({ error: 'Unauthorized' });
 
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(401).json({ error: 'User not found' });
 
-    passwordHash: { type: String, required: true },
+    const now = Date.now();
+    const trialActive =
+      user.trialEnd && now < new Date(user.trialEnd).getTime();
 
-    hasPaid: { type: Boolean, default: false },
+    if (user.hasPaid || trialActive) {
+      req.userDoc = user;
+      return next();
+    }
 
-    trialEnd: {
-      type: Date,
-      default: () => new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
-    },
-
-    // ✅ REQUIRED FOR FORGOT / RESET PASSWORD
-    resetToken: { type: String },
-    resetTokenExpiry: { type: Date },
-  },
-  { timestamps: true }
-);
-
-module.exports = mongoose.model('User', UserSchema);
+    return res
+      .status(403)
+      .json({ error: 'Payment required', trialExpired: true });
+  } catch (err) {
+    console.error('Paid middleware error:', err);
+    return res.status(500).json({ error: 'Access check failed' });
+  }
+};
