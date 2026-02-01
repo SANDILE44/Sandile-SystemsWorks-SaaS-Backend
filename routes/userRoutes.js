@@ -11,6 +11,12 @@ const paid = require('../middleware/paid');
 
 const { sendResetEmail } = require('../utils/sendResetEmail');
 
+// ✅ ADD THIS LINE RIGHT HERE
+console.log('✅ userRoutes v2 deployed:', {
+  userModelType: typeof User,
+  hasFindOne: typeof User?.findOne,
+});
+
 // helper
 function signToken(userId) {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET || 'secret123', {
