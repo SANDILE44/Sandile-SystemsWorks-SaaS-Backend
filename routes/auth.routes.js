@@ -5,7 +5,6 @@ import crypto from 'crypto';
 
 import User from '../models/User.js';
 import auth from '../middleware/auth.js';
-import { sendResetEmail } from '../utils/sendResetEmail.js';
 
 const router = express.Router();
 
@@ -105,35 +104,6 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
-  }
-});
-
-/* =========================
-   FORGOT PASSWORD
-========================= */
-router.post('/forgot-password', async (req, res) => {
-  const { email } = req.body;
-  const safe = { message: 'If the email exists, a reset link was sent.' };
-
-  if (!email) return res.json(safe);
-
-  try {
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user) return res.json(safe);
-
-    const token = crypto.randomBytes(32).toString('hex');
-
-    user.resetToken = token;
-    user.resetTokenExpiry = new Date(Date.now() + 30 * 60 * 1000);
-    await user.save();
-
-    const resetUrl = `${process.env.FRONTEND_RESET_URL}?token=${token}`;
-    await sendResetEmail(user.email, resetUrl);
-
-    res.json(safe);
-  } catch (err) {
-    console.error('Forgot password error:', err);
-    res.json(safe);
   }
 });
 
