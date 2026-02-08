@@ -1,6 +1,5 @@
 import express from 'express';
 import axios from 'axios';
-
 import auth from '../middleware/auth.js';
 import User from '../models/User.js';
 
@@ -25,28 +24,26 @@ router.post('/checkout', auth, async (req, res) => {
     if (!sub) return res.status(400).json({ error: 'Product unavailable' });
 
     if (sub.status === 'active') {
-      return res.status(400).json({ error: 'Product already active' });
+      return res.status(400).json({ error: 'Already subscribed' });
     }
 
     const amount =
       product === 'riskMonitor'
         ? 229900 // R2,299
-        : 1249900; // R12,499 calculators
-
-    const payload = {
-      amount,
-      currency: 'ZAR',
-      successUrl: process.env.FRONTEND_SUCCESS_URL,
-      cancelUrl: process.env.FRONTEND_CANCEL_URL,
-      metadata: {
-        userId: user._id.toString(),
-        product,
-      },
-    };
+        : 1249900; // R12,499
 
     const response = await axios.post(
       'https://payments.yoco.com/api/checkouts',
-      payload,
+      {
+        amount,
+        currency: 'ZAR',
+        successUrl: process.env.FRONTEND_SUCCESS_URL,
+        cancelUrl: process.env.FRONTEND_CANCEL_URL,
+        metadata: {
+          userId: user._id.toString(),
+          product,
+        },
+      },
       {
         headers: {
           Authorization: `Bearer ${process.env.YOCO_API_KEY}`,
