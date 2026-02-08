@@ -3,8 +3,6 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 import { connectDB } from './config/db.js';
 import { loadEnv } from './config/env.js';
@@ -13,9 +11,6 @@ import { loadEnv } from './config/env.js';
 import authRoutes from './routes/auth.routes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import calculatorsRoutes from './routes/calculatorRoutes.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // =======================
 // INIT
@@ -41,12 +36,10 @@ app.use(
 app.use(express.json());
 
 // =======================
-// STATIC FRONTEND (OPTIONAL)
+// HEALTH CHECK (ROOT)
 // =======================
-app.use(express.static(path.join(__dirname, '../frontend')));
-
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dashboard.html'));
+  res.json({ status: 'Sandile SystemsWorks API running' });
 });
 
 // =======================
