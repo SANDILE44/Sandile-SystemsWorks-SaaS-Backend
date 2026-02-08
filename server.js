@@ -9,11 +9,10 @@ import { fileURLToPath } from 'url';
 import { connectDB } from './config/db.js';
 import { loadEnv } from './config/env.js';
 
+// ROUTES (ONLY ACTIVE ONES)
 import authRoutes from './routes/auth.routes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import calculatorsRoutes from './routes/calculatorRoutes.js';
-
-import { startScheduler } from './services/monitoring/scheduler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,11 +41,10 @@ app.use(
 app.use(express.json());
 
 // =======================
-// STATIC FRONTEND
+// STATIC FRONTEND (OPTIONAL)
 // =======================
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Optional: default landing
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/dashboard.html'));
 });
@@ -62,25 +60,15 @@ app.use('/api/payments', paymentRoutes);
 // Calculators
 app.use('/api/calculators', calculatorsRoutes);
 
-// Risk Monitor
-app.use('/api/websites', websitesRoutes);
-app.use('/api/scans', scansRoutes);
-app.use('/api/reports', reportsRoutes);
-
 // =======================
 // START SERVER
 // =======================
 try {
   await connectDB();
-  startScheduler();
 
   app.listen(PORT, () => {
     console.log('✅ MongoDB connected');
-    console.log(
-      `[scheduler] Running every ${process.env.SCAN_INTERVAL_HOURS || 24}h`
-    );
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`🌐 http://localhost:${PORT}`);
   });
 } catch (err) {
   console.error('❌ Startup failed:', err.message);
