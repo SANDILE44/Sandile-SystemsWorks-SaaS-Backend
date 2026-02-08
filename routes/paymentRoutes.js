@@ -1,30 +1,29 @@
 import express from 'express';
 import axios from 'axios';
 import auth from '../middleware/auth.js';
-import User from '../models/User.js';
 
 const router = express.Router();
 
-/**
- * POST /api/payments/checkout
- * Purpose: create checkout for calculators ONLY
- */
 router.post('/checkout', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!process.env.YOCO_API_KEY) {
+      return res.status(500).json({ error: 'YOCO_API_KEY missing' });
+    }
+    if (!process.env.FRONTEND_SUCCESS_URL || !process.env.FRONTEND_CANCEL_URL) {
+      return res.status(500).json({ error: 'Success/Cancel URLs missing' });
+    }
 
-    const payload = {
-      amount: 1249900,
-      currency: 'ZAR',
-      successUrl: process.env.FRONTEND_SUCCESS_URL,
-      cancelUrl: process.env.FRONTEND_CANCEL_URL,
-      metadata: { userId: user._id.toString() },
-    };
+    const amount = Number(process.env.SUBSCRIPTION_AMOUNT || 1249900);
 
     const response = await axios.post(
       'https://payments.yoco.com/api/checkouts',
-      payload,
+      {
+        amount,
+        currency: 'ZAR',
+        successUrl: process.env.FRONTEND_SUCCESS_URL,
+        cancelUrl: process.env.FRONTEND_CANCEL_URL,
+        metadata: { userId: req.user.id, product: 'calculators' },
+      },
       {
         headers: {
           Authorization: `Bearer ${process.env.YOCO_API_KEY}`,
@@ -33,9 +32,12 @@ router.post('/checkout', auth, async (req, res) => {
       }
     );
 
-    res.json({ checkoutUrl: response.data.redirectUrl });
+    res.json({
+      checkoutUrl: response.data.redirectUrl,
+      checkoutId: response.data.id,
+    });
   } catch (err) {
-    console.error(err.response?.data || err.message);
+    console.error('YOCO checkout error:', err.response?.data || err.message);
     res.status(500).json({ error: 'Checkout failed' });
   }
 });
