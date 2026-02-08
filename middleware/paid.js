@@ -1,30 +1,40 @@
-const User = require('../models/User');
+import User from '../models/User.js';
 
-module.exports = async function paid(req, res, next) {
-  try {
-    if (!req.user?.id) return res.status(401).json({ error: 'Unauthorized' });
+export default function paid(productKey) {
+  return async (req, res, next) => {
+    try {
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(401).json({ error: 'User not found' });
+      }
 
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(401).json({ error: 'User not found' });
+      const sub = user.subscriptions?.[productKey];
+      if (!sub) {
+        return res.status(403).json({ error: 'No access to this product' });
+      }
 
-    const now = Date.now();
+      const now = Date.now();
 
-    const trialActive =
-      user.trialEnd && now < new Date(user.trialEnd).getTime();
+      const trialActive =
+        sub.status === 'trial' &&
+        sub.trialEnd &&
+        now < new Date(sub.trialEnd).getTime();
 
-    const subActive =
-      user.subscriptionEnd && now < new Date(user.subscriptionEnd).getTime();
+      const paidActive =
+        sub.status === 'active' &&
+        sub.subscriptionEnd &&
+        now < new Date(sub.subscriptionEnd).getTime();
 
-    if (trialActive || subActive) {
+      if (!trialActive && !paidActive) {
+        return res.status(403).json({ error: 'Payment required' });
+      }
+
       req.userDoc = user;
-      return next();
+      req.productSub = sub;
+      next();
+    } catch (err) {
+      console.error('Paid middleware error:', err);
+      return res.status(500).json({ error: 'Access check failed' });
     }
-
-    return res
-      .status(403)
-      .json({ error: 'Payment required', trialExpired: true });
-  } catch (err) {
-    console.error('Paid middleware error:', err);
-    return res.status(500).json({ error: 'Access check failed' });
-  }
-};
+  };
+}

@@ -1,81 +1,91 @@
-// server.js
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 
-const app = express();
-console.log('✅ DEPLOY MARKER: 2026-02-01 v3');
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const PORT = process.env.PORT || 10000;
+import { connectDB } from './config/db.js';
+import { loadEnv } from './config/env.js';
+
+import authRoutes from './routes/auth.routes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+import calculatorsRoutes from './routes/calculatorRoutes.js';
+import websitesRoutes from './routes/websites.routes.js';
+import scansRoutes from './routes/scans.routes.js';
+import reportsRoutes from './routes/reports.routes.js';
+
+import { startScheduler } from './services/monitoring/scheduler.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // =======================
-// Webhook route (RAW BODY FIRST)
+// INIT
+// =======================
+loadEnv();
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// =======================
+// MIDDLEWARE
 // =======================
 app.use(
-  '/api/webhooks',
-  express.raw({ type: 'application/json' }),
-  require('./routes/yocoWebhook')
+  cors({
+    origin: [
+      'http://localhost:5500',
+      'http://127.0.0.1:5500',
+      'https://sandile44.github.io',
+    ],
+    credentials: true,
+  })
 );
 
-// =======================
-// Standard Middleware
-// =======================
-app.use(cors({ origin: '*', credentials: false }));
 app.use(express.json());
 
 // =======================
-// MongoDB Connection
+// STATIC FRONTEND
 // =======================
-const dbURI = process.env.MONGO_URI;
+app.use(express.static(path.join(__dirname, '../frontend')));
 
-if (!dbURI) {
-  console.warn('⚠️ MONGO_URI not found. Waiting for environment injection...');
-} else {
-  mongoose
-    .connect(dbURI)
-    .then(() => console.log('✅ MongoDB connected'))
-    .catch((err) => {
-      console.error('❌ MongoDB connection error:', err.message);
-    });
-}
-
-// =======================
-// Health Check Routes
-// =======================
+// Optional: default landing
 app.get('/', (req, res) => {
-  res.send('Backend is alive!');
-});
-
-app.get('/test-db', async (req, res) => {
-  try {
-    if (!mongoose.connection.readyState) {
-      return res.status(503).json({ error: 'MongoDB not connected yet' });
-    }
-
-    const adminDb = mongoose.connection.db.admin();
-    const info = await adminDb.serverStatus();
-    res.json({ message: 'MongoDB connected!', info });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/_deploy-check', (req, res) => {
-  res.send('deploy-check-2026-02-01-v3');
+  res.sendFile(path.join(__dirname, '../frontend/dashboard.html'));
 });
 
 // =======================
-// API Routes
+// API ROUTES
 // =======================
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/users', require('./routes/recentCalculators'));
-app.use('/api/payments', require('./routes/paymentRoutes'));
-app.use('/api/calculators', require('./routes/calculatorRoutes'));
+
+// Auth & payments
+app.use('/api/auth', authRoutes);
+app.use('/api/payments', paymentRoutes);
+
+// Calculators
+app.use('/api/calculators', calculatorsRoutes);
+
+// Risk Monitor
+app.use('/api/websites', websitesRoutes);
+app.use('/api/scans', scansRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // =======================
-// Start Server (LAST)
+// START SERVER
 // =======================
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+try {
+  await connectDB();
+  startScheduler();
+
+  app.listen(PORT, () => {
+    console.log('✅ MongoDB connected');
+    console.log(
+      `[scheduler] Running every ${process.env.SCAN_INTERVAL_HOURS || 24}h`
+    );
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🌐 http://localhost:${PORT}`);
+  });
+} catch (err) {
+  console.error('❌ Startup failed:', err.message);
+  process.exit(1);
+}

@@ -1,30 +1,84 @@
-// models/User.js
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+
+const productSubscriptionSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ['trial', 'active', 'expired'],
+      default: 'trial',
+    },
+
+    trialEnd: {
+      type: Date,
+      default: null,
+    },
+
+    subscriptionEnd: {
+      type: Date,
+      default: null,
+    },
+
+    // Risk Monitor–specific controls (ignored for calculators)
+    scansToday: {
+      type: Number,
+      default: 0,
+    },
+
+    scansResetAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  { _id: false }
+);
 
 const userSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true, trim: true },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-    },
-
-    // store hashed password here
+    // =====================
+    // CORE IDENTITY
+    // =====================
+    name: { type: String, required: true },
+    email: { type: String, unique: true, required: true },
     passwordHash: { type: String, required: true },
 
-    hasPaid: { type: Boolean, default: false },
-    trialEnd: { type: Date, default: null },
-    subscriptionEnd: { type: Date, default: null },
+    // =====================
+    // PRODUCT SUBSCRIPTIONS
+    // =====================
+    subscriptions: {
+      calculators: {
+        type: productSubscriptionSchema,
+        default: () => ({
+          status: 'trial',
+          trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        }),
+      },
 
-    resetToken: { type: String, default: null },
-    resetTokenExpiry: { type: Date, default: null },
+      riskMonitor: {
+        type: productSubscriptionSchema,
+        default: () => ({
+          status: 'trial',
+          trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+          scansToday: 0,
+          scansResetAt: new Date(),
+        }),
+      },
+    },
 
-    recentCalculators: { type: [String], default: [] },
+    // =====================
+    // PASSWORD RESET
+    // =====================
+    resetToken: String,
+    resetTokenExpiry: Date,
+
+    // =====================
+    // CALCULATORS UX
+    // =====================
+    recentCalculators: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );
 
-module.exports = mongoose.model('User', userSchema);
+export default mongoose.model('User', userSchema);

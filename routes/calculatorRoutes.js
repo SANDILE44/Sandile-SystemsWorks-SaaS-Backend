@@ -1,9 +1,8 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
 
-// Test user route
 router.get('/', (req, res) => {
-  res.json({ message: 'Calculators route works!' });
+  res.json({ message: 'Calculators API working' });
 });
 
-module.exports = router;
+export default router;
