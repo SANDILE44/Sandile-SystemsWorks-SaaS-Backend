@@ -12,9 +12,6 @@ import { loadEnv } from './config/env.js';
 import authRoutes from './routes/auth.routes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import calculatorsRoutes from './routes/calculatorRoutes.js';
-import websitesRoutes from './routes/websites.routes.js';
-import scansRoutes from './routes/scans.routes.js';
-import reportsRoutes from './routes/reports.routes.js';
 
 import { startScheduler } from './services/monitoring/scheduler.js';
 
