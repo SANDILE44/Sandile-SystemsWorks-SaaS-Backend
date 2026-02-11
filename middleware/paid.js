@@ -31,6 +31,7 @@ export default function paid(productKey) {
 
       req.userDoc = user;
       req.productSub = sub;
+
       next();
     } catch (err) {
       console.error('Paid middleware error:', err);
