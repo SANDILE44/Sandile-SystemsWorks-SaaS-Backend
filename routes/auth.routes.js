@@ -16,7 +16,6 @@ function signToken(userId) {
     expiresIn: '7d',
   });
 }
-
 /* =========================
    SIGNUP (3-DAY TRIAL)
 ========================= */
@@ -37,25 +36,19 @@ router.post('/signup', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const now = Date.now();
-    const trialEnd = new Date(now + 3 * 24 * 60 * 60 * 1000);
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 3);
+    trialEnd.setHours(23, 59, 59, 999);
 
     const user = await User.create({
       name: name.trim(),
       email: cleanEmail,
       passwordHash,
-      subscriptions: {
-        calculators: {
-          status: 'trial',
-          trialEnd,
-        },
-        riskMonitor: {
-          status: 'trial',
-          trialEnd,
-          scansToday: 0,
-          scansResetAt: new Date(),
-        },
-      },
+
+      // 🔑 THESE ARE WHAT YOUR CALCULATORS USE
+      hasPaid: false,
+      trialEnd,
+      subscriptionEnd: null,
     });
 
     const token = signToken(user._id);
@@ -67,7 +60,8 @@ router.post('/signup', async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        subscriptions: user.subscriptions,
+        hasPaid: user.hasPaid,
+        trialEnd: user.trialEnd,
       },
     });
   } catch (err) {
