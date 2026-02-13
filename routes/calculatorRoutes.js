@@ -1,4 +1,30 @@
 
+function hasCalculatorAccess(user) {
+  const now = Date.now();
+  const calcSub = user.subscriptions?.calculators;
+  if (!calcSub) return false;
+
+  // Active subscription
+  if (calcSub.status === 'active') {
+    // If no end date → allow
+    if (!calcSub.subscriptionEnd) return true;
+
+    if (new Date(calcSub.subscriptionEnd).getTime() > now) {
+      return true;
+    }
+  }
+
+  // Trial subscription
+  if (
+    calcSub.status === 'trial' &&
+    calcSub.trialEnd &&
+    new Date(calcSub.trialEnd).getTime() > now
+  ) {
+    return true;
+  }
+
+  return false;
+}
 
 async function requireActiveAccess(req, res, next) {
   const user = await User.findById(req.user.id).select('subscriptions');
@@ -1029,4 +1055,5 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
