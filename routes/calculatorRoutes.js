@@ -1,36 +1,4 @@
-import express from 'express';
-import auth from '../middleware/auth.js';
-import User from '../models/User.js';
 
-const router = express.Router();
-
-/* ---------------- ACCESS CHECK ---------------- */
-function hasCalculatorAccess(user) {
-  const now = Date.now();
-
-  const calcSub = user.subscriptions?.calculators;
-  if (!calcSub) return false;
-
-  // Paid subscription
-  if (
-    calcSub.status === 'active' &&
-    calcSub.subscriptionEnd &&
-    new Date(calcSub.subscriptionEnd).getTime() > now
-  ) {
-    return true;
-  }
-
-  // Trial subscription
-  if (
-    calcSub.status === 'trial' &&
-    calcSub.trialEnd &&
-    new Date(calcSub.trialEnd).getTime() > now
-  ) {
-    return true;
-  }
-
-  return false;
-}
 
 async function requireActiveAccess(req, res, next) {
   const user = await User.findById(req.user.id).select('subscriptions');
@@ -1061,3 +1029,4 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
