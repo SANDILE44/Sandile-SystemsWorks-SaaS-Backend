@@ -1,3 +1,8 @@
+import express from 'express';
+import auth from '../middleware/auth.js';
+import User from '../models/User.js';
+
+const router = express.Router();
 
 function hasCalculatorAccess(user) {
   const now = Date.now();
@@ -1055,5 +1060,6 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
