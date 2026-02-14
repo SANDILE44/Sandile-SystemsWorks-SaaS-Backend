@@ -567,6 +567,7 @@ router.post('/it/services', auth, requireActiveAccess, (req, res) => {
 });
 
 /* ================= LOGISTICS ================= */
+/* ================= LOGISTICS ================= */
 router.post('/logistics/business', auth, requireActiveAccess, (req, res) => {
   const { shipments, revenuePer, fuel, labor, maintenance, fixed } = req.body;
 
@@ -1115,6 +1116,7 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
 
