@@ -574,20 +574,62 @@ router.post('/logistics/business', auth, requireActiveAccess, (req, res) => {
   const totalCosts = fuel + labor + maintenance + fixed;
   const profit = totalRevenue - totalCosts;
 
+  /* =========================
+     CORE METRICS
+  ========================= */
   const costPerShipment = shipments ? totalCosts / shipments : 0;
+  const revenuePerShipment = shipments ? totalRevenue / shipments : 0;
+  const profitPerShipment = shipments ? profit / shipments : 0;
 
   const margin = totalRevenue ? (profit / totalRevenue) * 100 : 0;
-
   const roi = totalCosts ? (profit / totalCosts) * 100 : 0;
+
+  /* =========================
+     DECISION METRICS (NEW)
+  ========================= */
+
+  // Break-even shipments (how many deliveries needed to survive)
+  const contributionPerShipment = revenuePer - (shipments ? totalCosts / shipments : 0);
+  const breakEvenShipments =
+    revenuePer > 0 ? Math.ceil(totalCosts / revenuePer) : 0;
+
+  // Cost structure insights
+  const fuelPercent = totalCosts ? (fuel / totalCosts) * 100 : 0;
+  const laborPercent = totalCosts ? (labor / totalCosts) * 100 : 0;
+  const maintenancePercent = totalCosts ? (maintenance / totalCosts) * 100 : 0;
+
+  // Monthly & annual projections
+  const monthlyProfit = profit;
+  const annualProfit = profit * 12;
+
+  // Health status (SUPER IMPORTANT FOR CLIENTS)
+  let status = 'Break-even';
+  if (profit > 0) status = 'Profitable';
+  if (profit < 0) status = 'Loss';
 
   res.json({
     shipments,
     totalRevenue,
     totalCosts,
     profit,
+
     costPerShipment,
+    revenuePerShipment,
+    profitPerShipment,
+
     margin,
     roi,
+
+    breakEvenShipments,
+
+    fuelPercent,
+    laborPercent,
+    maintenancePercent,
+
+    monthlyProfit,
+    annualProfit,
+
+    status,
   });
 });
 
@@ -1060,6 +1102,7 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
 
