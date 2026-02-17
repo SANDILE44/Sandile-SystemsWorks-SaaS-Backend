@@ -926,8 +926,7 @@ router.post('/energy/renewable', auth, requireActiveAccess, (req, res) => {
 
 /* ================= RESTAURANT ================= */
 router.post('/restaurant/operations', auth, requireActiveAccess, (req, res) => {
-  const { tables, coversPerTable, avgCheck, foodPct, labor, fixed, days } =
-    req.body;
+  const { tables, coversPerTable, avgCheck, foodPct, labor, fixed, days } = req.body;
 
   const dailyCovers = tables * coversPerTable;
   const monthlyRevenue = dailyCovers * avgCheck * days;
@@ -937,17 +936,33 @@ router.post('/restaurant/operations', auth, requireActiveAccess, (req, res) => {
   const profit = monthlyRevenue - totalCosts;
 
   const margin = monthlyRevenue ? (profit / monthlyRevenue) * 100 : 0;
-
   const costRatio = monthlyRevenue ? (totalCosts / monthlyRevenue) * 100 : 0;
 
   const profitPerCover =
     dailyCovers && days ? profit / (dailyCovers * days) : 0;
 
   const breakevenCovers =
-    avgCheck > 0 && days > 0 ? Math.ceil(totalCosts / (avgCheck * days)) : null;
+    avgCheck > 0 && days > 0
+      ? Math.ceil(totalCosts / (avgCheck * days))
+      : null;
 
   const monthlyProfit = profit;
   const annualProfit = profit * 12;
+
+  /* ===== DECISION LOGIC ===== */
+  let status = 'Break-even';
+  let advice = 'Monitor costs and pricing.';
+
+  if (profit > 0) status = 'Profitable';
+  if (profit < 0) status = 'Loss';
+
+  if (margin < 10) {
+    advice = 'Margin is low — review pricing or reduce costs.';
+  } else if (margin < 20) {
+    advice = 'Healthy margin, but optimization possible.';
+  } else {
+    advice = 'Strong profitability zone.';
+  }
 
   res.json({
     dailyCovers,
@@ -961,6 +976,8 @@ router.post('/restaurant/operations', auth, requireActiveAccess, (req, res) => {
     breakevenCovers,
     monthlyProfit,
     annualProfit,
+    status,
+    advice
   });
 });
 
@@ -1116,6 +1133,7 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
 
