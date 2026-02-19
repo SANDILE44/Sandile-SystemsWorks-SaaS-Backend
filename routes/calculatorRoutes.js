@@ -152,123 +152,101 @@ router.post('/transport/vehicle', auth, requireActiveAccess, (req, res) => {
   });
 });
 /* ================= CONSTRUCTION ================= */
-router.post(
-  '/construction/project',
-  auth,
-  requireActiveAccess,
-  (req, res) => {
-    // Safe casting
-    const value = Number(req.body.value) || 0;
-    const material = Number(req.body.material) || 0;
-    const laborMonthly = Number(req.body.laborMonthly) || 0;
-    const equipmentMonthly = Number(req.body.equipmentMonthly) || 0;
-    const fixedMonthly = Number(req.body.fixedMonthly) || 0;
-    const months = Number(req.body.months) || 0;
+router.post('/construction/project', auth, requireActiveAccess, (req, res) => {
+  let {
+    value,
+    material,
+    laborMonthly,
+    equipmentMonthly,
+    fixedMonthly,
+    months,
+  } = req.body;
 
-    /* ================= COST TOTALS ================= */
-    const laborTotal = laborMonthly * months;
-    const equipmentTotal = equipmentMonthly * months;
-    const fixedTotal = fixedMonthly * months;
+  // ===== SANITIZE INPUTS =====
+  value = Number(value) || 0;
+  material = Number(material) || 0;
+  laborMonthly = Number(laborMonthly) || 0;
+  equipmentMonthly = Number(equipmentMonthly) || 0;
+  fixedMonthly = Number(fixedMonthly) || 0;
+  months = Number(months) > 0 ? Number(months) : 0;
 
-    const totalCosts =
-      material + laborTotal + equipmentTotal + fixedTotal;
+  // ===== TOTAL COSTS =====
+  const laborTotal = laborMonthly * months;
+  const equipmentTotal = equipmentMonthly * months;
+  const fixedTotal = fixedMonthly * months;
 
-    const profit = value - totalCosts;
+  const totalCosts =
+    material + laborTotal + equipmentTotal + fixedTotal;
 
-    /* ================= CORE METRICS ================= */
-    const margin = value > 0 ? (profit / value) * 100 : 0;
-    const roi = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
-    const costRatio = value > 0 ? (totalCosts / value) * 100 : 0;
+  // ===== PROFIT =====
+  const profit = value - totalCosts;
 
-    const breakEvenRevenue = totalCosts;
+  const margin = value ? (profit / value) * 100 : 0;
+  const roi = totalCosts ? (profit / totalCosts) * 100 : 0;
+  const costRatio = value ? (totalCosts / value) * 100 : 0;
 
-    const profitPerMaterial =
-      material > 0 ? profit / material : 0;
+  const breakEvenRevenue = totalCosts;
 
-    const profitPerLabor =
-      laborTotal > 0 ? profit / laborTotal : 0;
+  const monthlyProfit = months ? profit / months : 0;
+  const annualProfit = monthlyProfit * 12;
 
-    const profitPerEquipment =
-      equipmentTotal > 0 ? profit / equipmentTotal : 0;
+  // ===== PROFIT PER COST =====
+  const profitPerMaterial = material ? profit / material : 0;
+  const profitPerLabor = laborTotal ? profit / laborTotal : 0;
+  const profitPerEquipment = equipmentTotal ? profit / equipmentTotal : 0;
 
-    const monthlyProfit =
-      months > 0 ? profit / months : 0;
+  // ===== COST OVERRUN SIMULATION =====
+  const overrun5 = totalCosts * 1.05;
+  const overrun10 = totalCosts * 1.1;
+  const overrun20 = totalCosts * 1.2;
 
-    const annualProfit =
-      months > 0 ? monthlyProfit * 12 : 0;
+  const profitOverrun5 = value - overrun5;
+  const profitOverrun10 = value - overrun10;
+  const profitOverrun20 = value - overrun20;
 
-    /* ================= RISK SIMULATION ================= */
-    const overrunCosts = totalCosts * 1.1; // 10% overrun
-    const overrunProfit = value - overrunCosts;
-    const overrunMargin =
-      value > 0 ? (overrunProfit / value) * 100 : 0;
+  // ===== DECISION ENGINE =====
+  let decision = 'Strong Project';
+  let riskLevel = 'Low';
 
-    /* ================= MARKUP RECOMMENDATION ================= */
-    const targetMargin = 20; // Recommended minimum
-    const recommendedRevenue =
-      totalCosts / (1 - targetMargin / 100);
-
-    const requiredMarkup =
-      totalCosts > 0
-        ? ((recommendedRevenue - totalCosts) / totalCosts) * 100
-        : 0;
-
-    /* ================= DECISION LOGIC ================= */
-    let decision = 'REVIEW';
-    let riskLevel = 'Moderate';
-    let warning = '';
-
-    if (profit <= 0) {
-      decision = 'REJECT';
-      riskLevel = 'High';
-      warning = 'Project is currently unprofitable.';
-    } else if (margin < 10) {
-      decision = 'REVIEW';
-      riskLevel = 'High';
-      warning =
-        'Low margin. Small cost increases could eliminate profit.';
-    } else if (margin >= 20) {
-      decision = 'TAKE PROJECT';
-      riskLevel = 'Low';
-      warning =
-        'Healthy margin. Project is financially stable.';
-    } else {
-      decision = 'REVIEW';
-      riskLevel = 'Moderate';
-      warning =
-        'Margin acceptable but sensitive to overruns.';
-    }
-
-    /* ================= RESPONSE ================= */
-    res.json({
-      value,
-      material,
-      laborTotal,
-      equipmentTotal,
-      fixedTotal,
-      totalCosts,
-      profit,
-      margin,
-      roi,
-      costRatio,
-      breakEvenRevenue,
-      profitPerMaterial,
-      profitPerLabor,
-      profitPerEquipment,
-      monthlyProfit,
-      annualProfit,
-
-      // Advanced decision layer
-      overrunProfit,
-      overrunMargin,
-      recommendedRevenue,
-      requiredMarkup,
-      decision,
-      riskLevel,
-      warning,
-    });
+  if (profit <= 0) {
+    decision = 'Do Not Take';
+    riskLevel = 'High';
+  } else if (margin < 10) {
+    decision = 'High Risk';
+    riskLevel = 'High';
+  } else if (margin < 20) {
+    decision = 'Moderate Risk';
+    riskLevel = 'Medium';
   }
-);
+
+  res.json({
+    value,
+    material,
+    laborTotal,
+    equipmentTotal,
+    fixedTotal,
+    totalCosts,
+    profit,
+    margin,
+    roi,
+    costRatio,
+    breakEvenRevenue,
+    profitPerMaterial,
+    profitPerLabor,
+    profitPerEquipment,
+    monthlyProfit,
+    annualProfit,
+
+    // Overrun simulations
+    profitOverrun5,
+    profitOverrun10,
+    profitOverrun20,
+
+    // Decision
+    decision,
+    riskLevel,
+  });
+});
 
 /* ================= CONSULTING ================= */
 router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
@@ -1226,6 +1204,7 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
 
