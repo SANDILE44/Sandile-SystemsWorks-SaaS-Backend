@@ -611,86 +611,145 @@ router.post('/it/services', auth, requireActiveAccess, (req, res) => {
 });
 
 /* ================= LOGISTICS ================= */
-/* ================= LOGISTICS ================= */
-router.post('/logistics/business', auth, requireActiveAccess, (req, res) => {
-  const { shipments, revenuePer, fuel, labor, maintenance, fixed } = req.body;
+router.post(
+  '/logistics/business',
+  auth,
+  requireActiveAccess,
+  (req, res) => {
+    const toNum = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
 
-  const s = Number(shipments) || 0;
-  const r = Number(revenuePer) || 0;
-  const f = Number(fuel) || 0;
-  const l = Number(labor) || 0;
-  const m = Number(maintenance) || 0;
-  const fx = Number(fixed) || 0;
+    const shipments = Math.max(0, Math.floor(toNum(req.body.shipments)));
+    const revenuePer = Math.max(0, toNum(req.body.revenuePer));
+    const fuel = Math.max(0, toNum(req.body.fuel));
+    const labor = Math.max(0, toNum(req.body.labor));
+    const maintenance = Math.max(0, toNum(req.body.maintenance));
+    const fixed = Math.max(0, toNum(req.body.fixed));
 
-  /* =========================
-     CORE CALCULATIONS
-  ========================= */
-  const totalRevenue = s * r;
-  const totalCosts = f + l + m + fx;
-  const profit = totalRevenue - totalCosts;
+    /* =========================
+       CORE CALCULATIONS
+    ========================= */
+    const totalRevenue = shipments * revenuePer;
+    const totalCosts = fuel + labor + maintenance + fixed;
+    const profit = totalRevenue - totalCosts;
 
-  const costPerShipment = s > 0 ? totalCosts / s : 0;
-  const revenuePerShipment = s > 0 ? totalRevenue / s : 0;
-  const profitPerShipment = s > 0 ? profit / s : 0;
+    const costPerShipment =
+      shipments > 0 ? totalCosts / shipments : 0;
 
-  const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
-  const roi = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
+    const revenuePerShipment =
+      shipments > 0 ? totalRevenue / shipments : 0;
 
-  /* =========================
-     DECISION METRICS
-  ========================= */
+    const profitPerShipment =
+      shipments > 0 ? profit / shipments : 0;
 
-  // how many shipments needed to cover costs
-  const breakEvenShipments =
-    r > 0 ? Math.ceil(totalCosts / r) : 0;
+    const margin =
+      totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
-  // cost structure % (of TOTAL COSTS)
-  const fuelPercent = totalCosts > 0 ? (f / totalCosts) * 100 : 0;
-  const laborPercent = totalCosts > 0 ? (l / totalCosts) * 100 : 0;
-  const maintenancePercent = totalCosts > 0 ? (m / totalCosts) * 100 : 0;
+    const roi =
+      totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
 
-  /* =========================
-     PROJECTIONS
-  ========================= */
-  const monthlyProfit = profit;
-  const annualProfit = profit * 12;
+    const breakEvenShipments =
+      revenuePer > 0
+        ? Math.ceil(totalCosts / revenuePer)
+        : 0;
 
-  /* =========================
-     STATUS (VERY IMPORTANT)
-  ========================= */
-  let status = 'Break-even';
-  if (profit > 0) status = 'Profitable';
-  else if (profit < 0) status = 'Loss';
+    const annualProfit = profit * 12;
 
-  /* =========================
-     RESPONSE (MATCHES FRONTEND)
-  ========================= */
-  res.json({
-    shipments: s,
+    /* =========================
+       COST STRUCTURE %
+       (OF TOTAL COSTS)
+    ========================= */
+    const fuelPercent =
+      totalCosts > 0 ? (fuel / totalCosts) * 100 : 0;
 
-    totalRevenue,
-    totalCosts,
-    profit,
+    const laborPercent =
+      totalCosts > 0 ? (labor / totalCosts) * 100 : 0;
 
-    costPerShipment,
-    revenuePerShipment,
-    profitPerShipment,
+    const maintenancePercent =
+      totalCosts > 0
+        ? (maintenance / totalCosts) * 100
+        : 0;
 
-    margin,
-    roi,
+    /* =========================
+       STATUS
+    ========================= */
+    let status = 'Break-even';
+    if (profit > 0) status = 'Profitable';
+    if (profit < 0) status = 'Loss';
 
-    breakEvenShipments,
+    /* =========================
+       ADVANCED DECISION ENGINE
+    ========================= */
 
-    fuelPercent,
-    laborPercent,
-    maintenancePercent,
+    // Risk level based on margin
+    let riskLevel = 'Low';
+    if (margin < 5) riskLevel = 'High';
+    else if (margin < 15) riskLevel = 'Medium';
 
-    monthlyProfit,
-    annualProfit,
+    // Recommended minimum price to reach 20% margin
+    const targetMargin = 20;
+    const recommendedPricePerShipment =
+      costPerShipment > 0
+        ? costPerShipment / (1 - targetMargin / 100)
+        : 0;
 
-    status,
-  });
-});
+    // Safety status
+    let safetyStatus = 'Healthy';
+    if (margin < 10) safetyStatus = 'At Risk';
+    if (profit < 0) safetyStatus = 'Critical';
+
+    // Advice engine
+    let advice =
+      'Operation is stable. Monitor cost structure regularly.';
+
+    if (profit < 0) {
+      advice =
+        'Operation is running at a loss. Increase price per shipment or reduce largest cost driver immediately.';
+    } else if (margin < 10) {
+      advice =
+        'Margins are thin. Small cost increases could wipe out profit.';
+    } else if (margin >= 20) {
+      advice =
+        'Strong margin zone. You have pricing power and operational buffer.';
+    }
+
+    /* =========================
+       RESPONSE
+    ========================= */
+    res.json({
+      shipments,
+
+      totalRevenue,
+      totalCosts,
+      profit,
+
+      costPerShipment,
+      revenuePerShipment,
+      profitPerShipment,
+
+      margin,
+      roi,
+
+      breakEvenShipments,
+      annualProfit,
+
+      fuelPercent,
+      laborPercent,
+      maintenancePercent,
+
+      status,
+
+      // decision engine
+      riskLevel,
+      recommendedPricePerShipment,
+      safetyStatus,
+      advice,
+    });
+  }
+);
+
 /* ================= MANUFACTURING ================= */
 router.post(
   '/manufacturing/business',
@@ -1204,6 +1263,7 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
 
