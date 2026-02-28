@@ -610,7 +610,7 @@ router.post('/it/services', auth, requireActiveAccess, (req, res) => {
   });
 });
 
-/* ================= LOGISTICS ================= */
+/* ================= LOGISTICS ROUTES ================= */
 router.post(
   '/logistics/business',
   auth,
@@ -621,6 +621,9 @@ router.post(
       return Number.isFinite(n) ? n : 0;
     };
 
+    /* =========================
+       INPUT SANITIZATION
+    ========================= */
     const shipments = Math.max(0, Math.floor(toNum(req.body.shipments)));
     const revenuePer = Math.max(0, toNum(req.body.revenuePer));
     const fuel = Math.max(0, toNum(req.body.fuel));
@@ -635,42 +638,26 @@ router.post(
     const totalCosts = fuel + labor + maintenance + fixed;
     const profit = totalRevenue - totalCosts;
 
-    const costPerShipment =
-      shipments > 0 ? totalCosts / shipments : 0;
+    const costPerShipment = shipments > 0 ? totalCosts / shipments : 0;
+    const revenuePerShipment = shipments > 0 ? revenuePer : 0;
+    const profitPerShipment = shipments > 0 ? profit / shipments : 0;
 
-    const revenuePerShipment =
-      shipments > 0 ? totalRevenue / shipments : 0;
-
-    const profitPerShipment =
-      shipments > 0 ? profit / shipments : 0;
-
-    const margin =
-      totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
-
-    const roi =
-      totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
+    const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+    const roi = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
 
     const breakEvenShipments =
-      revenuePer > 0
-        ? Math.ceil(totalCosts / revenuePer)
-        : 0;
+      revenuePer > 0 ? Math.ceil(totalCosts / revenuePer) : 0;
 
     const annualProfit = profit * 12;
 
     /* =========================
-       COST STRUCTURE %
-       (OF TOTAL COSTS)
+       COST STRUCTURE % (OF TOTAL COSTS)
     ========================= */
-    const fuelPercent =
-      totalCosts > 0 ? (fuel / totalCosts) * 100 : 0;
-
-    const laborPercent =
-      totalCosts > 0 ? (labor / totalCosts) * 100 : 0;
-
+    const fuelPercent = totalCosts > 0 ? (fuel / totalCosts) * 100 : 0;
+    const laborPercent = totalCosts > 0 ? (labor / totalCosts) * 100 : 0;
     const maintenancePercent =
-      totalCosts > 0
-        ? (maintenance / totalCosts) * 100
-        : 0;
+      totalCosts > 0 ? (maintenance / totalCosts) * 100 : 0;
+    const fixedPercent = totalCosts > 0 ? (fixed / totalCosts) * 100 : 0;
 
     /* =========================
        STATUS
@@ -680,39 +667,34 @@ router.post(
     if (profit < 0) status = 'Loss';
 
     /* =========================
-       ADVANCED DECISION ENGINE
+       DECISION ENGINE (MONTHLY)
     ========================= */
-
-    // Risk level based on margin
     let riskLevel = 'Low';
-    if (margin < 5) riskLevel = 'High';
+    if (profit < 0) riskLevel = 'High';
+    else if (margin < 8) riskLevel = 'High';
     else if (margin < 15) riskLevel = 'Medium';
 
-    // Recommended minimum price to reach 20% margin
     const targetMargin = 20;
     const recommendedPricePerShipment =
-      costPerShipment > 0
+      costPerShipment > 0 && targetMargin > 0 && targetMargin < 100
         ? costPerShipment / (1 - targetMargin / 100)
         : 0;
 
-    // Safety status
     let safetyStatus = 'Healthy';
-    if (margin < 10) safetyStatus = 'At Risk';
     if (profit < 0) safetyStatus = 'Critical';
+    else if (margin < 10) safetyStatus = 'At Risk';
 
-    // Advice engine
     let advice =
-      'Operation is stable. Monitor cost structure regularly.';
-
+      'Operations are stable. Monitor costs and maintain margin discipline.';
     if (profit < 0) {
       advice =
-        'Operation is running at a loss. Increase price per shipment or reduce largest cost driver immediately.';
+        'Operation is running at a loss. Increase pricing or reduce the largest cost driver immediately.';
     } else if (margin < 10) {
       advice =
-        'Margins are thin. Small cost increases could wipe out profit.';
+        'Margins are thin. Small cost increases can wipe out profitability. Adjust pricing or tighten cost controls.';
     } else if (margin >= 20) {
       advice =
-        'Strong margin zone. You have pricing power and operational buffer.';
+        'Strong margin zone. You have operational buffer and pricing leverage.';
     }
 
     /* =========================
@@ -738,10 +720,10 @@ router.post(
       fuelPercent,
       laborPercent,
       maintenancePercent,
+      fixedPercent,
 
       status,
 
-      // decision engine
       riskLevel,
       recommendedPricePerShipment,
       safetyStatus,
@@ -749,6 +731,151 @@ router.post(
     });
   }
 );
+
+/* =====================================================
+   SHIPMENT RISK & PRICING ENGINE (BACKEND)
+   POST /logistics/shipment
+===================================================== */
+router.post(
+  '/logistics/shipment',
+  auth,
+  requireActiveAccess,
+  (req, res) => {
+    const toNum = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+
+    /* =========================
+       INPUT SANITIZATION
+    ========================= */
+    const quote = Math.max(0, toNum(req.body.quote));
+
+    const minMargin = clamp(toNum(req.body.minMargin), 0, 99.99);
+    const buffer = clamp(toNum(req.body.buffer), 0, 99.99);
+
+    const distance = Math.max(0, toNum(req.body.distance));
+    const fuelPerKm = Math.max(0, toNum(req.body.fuelPerKm));
+    const vehiclePerKm = Math.max(0, toNum(req.body.vehiclePerKm));
+
+    const loadFactor = clamp(toNum(req.body.loadFactor) || 100, 1, 200);
+
+    const drivingHours = Math.max(0, toNum(req.body.drivingHours));
+    const waitHours = Math.max(0, toNum(req.body.waitHours));
+    const driverRate = Math.max(0, toNum(req.body.driverRate));
+
+    const tolls = Math.max(0, toNum(req.body.tolls));
+    const permits = Math.max(0, toNum(req.body.permits));
+    const otherFees = Math.max(0, toNum(req.body.otherFees));
+
+    const cargoValue = Math.max(0, toNum(req.body.cargoValue));
+    const insuranceRate = clamp(toNum(req.body.insuranceRate), 0, 100);
+
+    const duties = Math.max(0, toNum(req.body.duties));
+    const handling = Math.max(0, toNum(req.body.handling));
+    const passThrough = Math.max(0, toNum(req.body.passThrough));
+
+    /* =========================
+       COST ENGINE
+    ========================= */
+    const fuelCost = distance * fuelPerKm;
+    const vehicleCost = distance * vehiclePerKm;
+    const timeCost = (drivingHours + waitHours) * driverRate;
+    const insuranceCost = (insuranceRate / 100) * cargoValue;
+
+    const baseCost =
+      fuelCost +
+      vehicleCost +
+      timeCost +
+      tolls +
+      permits +
+      otherFees +
+      insuranceCost +
+      duties +
+      handling +
+      passThrough;
+
+    /* Load factor multiplier (if under-loaded, effective cost rises) */
+    const loadMultiplier = 100 / loadFactor;
+    const totalCost = baseCost * loadMultiplier;
+
+    const profit = quote - totalCost;
+    const margin = quote > 0 ? (profit / quote) * 100 : 0;
+
+    const requiredMargin = clamp(minMargin + buffer, 0, 99.99);
+
+    /* Recommended minimum quote (safe guard against division by zero) */
+    let recommendedMinQuote = totalCost;
+    if (requiredMargin > 0 && requiredMargin < 100) {
+      recommendedMinQuote = totalCost / (1 - requiredMargin / 100);
+    }
+
+    /* =========================
+       DECISION ENGINE
+    ========================= */
+    let decision = 'REVIEW';
+    let reason = 'Shipment requires review before approval.';
+
+    if (quote === 0) {
+      decision = 'REVIEW';
+      reason = 'Enter a client quote to evaluate profitability.';
+    } else if (margin >= requiredMargin) {
+      decision = 'APPROVE';
+      reason = 'Shipment meets required margin and safety buffer.';
+    } else if (margin < minMargin) {
+      decision = 'REJECT';
+      reason = 'Shipment does not meet minimum margin requirement.';
+    } else {
+      decision = 'REVIEW';
+      reason = 'Shipment is above minimum margin but below safety buffer.';
+    }
+
+    /* Simple risk badge (shipment-level) */
+    let shipmentRisk = 'Low';
+    if (profit < 0) shipmentRisk = 'High';
+    else if (margin < minMargin) shipmentRisk = 'High';
+    else if (margin < requiredMargin) shipmentRisk = 'Medium';
+
+    res.json({
+      quote,
+
+      minMargin,
+      buffer,
+      requiredMargin,
+
+      // cost breakdown
+      fuelCost,
+      vehicleCost,
+      timeCost,
+      insuranceCost,
+
+      tolls,
+      permits,
+      otherFees,
+      duties,
+      handling,
+      passThrough,
+
+      baseCost,
+      loadFactor,
+      loadMultiplier,
+
+      totalCost,
+      profit,
+      margin,
+
+      recommendedMinQuote,
+
+      decision,
+      reason,
+      shipmentRisk,
+    });
+  }
+);
+
+
 
 /* ================= MANUFACTURING ================= */
 router.post(
@@ -1263,6 +1390,7 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
 
