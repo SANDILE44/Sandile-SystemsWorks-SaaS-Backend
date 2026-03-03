@@ -611,31 +611,12 @@ router.post('/it/services', auth, requireActiveAccess, (req, res) => {
 });
 
 /* ================= LOGISTICS ROUTES ================= */
-const express = require('express');
-const router = express.Router();
-
-const auth = require('../../middleware/auth');
-const requireActiveAccess = require('../../middleware/requireActiveAccess');
-
-/* =====================================================
-   HELPER FUNCTIONS
+    /* =====================================================
+   LOGISTICS — MONTHLY OPERATIONS
+   POST /logistics/business
 ===================================================== */
-
-const toNum = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const clamp = (n, min, max) =>
-  Math.min(max, Math.max(min, n));
-
-/* =====================================================
-   1️⃣ MONTHLY OPERATIONS ANALYSIS
-   POST /api/calculators/logistics/business
-===================================================== */
-
 router.post(
-  '/business',
+  '/logistics/business',
   auth,
   requireActiveAccess,
   (req, res) => {
@@ -647,7 +628,6 @@ router.post(
     const maintenance = Math.max(0, toNum(req.body.maintenance));
     const fixed = Math.max(0, toNum(req.body.fixed));
 
-    /* ===== CORE ===== */
     const totalRevenue = shipments * revenuePer;
     const totalCosts = fuel + labor + maintenance + fixed;
     const profit = totalRevenue - totalCosts;
@@ -669,7 +649,6 @@ router.post(
 
     const annualProfit = profit * 12;
 
-    /* ===== COST STRUCTURE ===== */
     const fuelPercent =
       totalCosts > 0 ? (fuel / totalCosts) * 100 : 0;
 
@@ -682,14 +661,11 @@ router.post(
     const fixedPercent =
       totalCosts > 0 ? (fixed / totalCosts) * 100 : 0;
 
-    /* ===== STATUS ===== */
     let status = 'Break-even';
     if (profit > 0) status = 'Profitable';
     if (profit < 0) status = 'Loss';
 
-    /* ===== RISK ENGINE ===== */
     let riskLevel = 'Low';
-
     if (profit < 0) riskLevel = 'High';
     else if (margin < 8) riskLevel = 'High';
     else if (margin < 15) riskLevel = 'Medium';
@@ -743,13 +719,13 @@ router.post(
   }
 );
 
-/* =====================================================
-   2️⃣ SHIPMENT RISK & PRICING ENGINE
-   POST /api/calculators/logistics/shipment
-===================================================== */
 
+/* =====================================================
+   LOGISTICS — SHIPMENT ENGINE
+   POST /logistics/shipment
+===================================================== */
 router.post(
-  '/shipment',
+  '/logistics/shipment',
   auth,
   requireActiveAccess,
   (req, res) => {
@@ -778,7 +754,6 @@ router.post(
     const handling = Math.max(0, toNum(req.body.handling));
     const passThrough = Math.max(0, toNum(req.body.passThrough));
 
-    /* ===== COST BUILD ===== */
     const fuelCost = distance * fuelPerKm;
     const vehicleCost = distance * vehiclePerKm;
     const timeCost = (drivingHours + waitHours) * driverRate;
@@ -806,10 +781,13 @@ router.post(
     const requiredMargin =
       clamp(minMargin + buffer, 0, 99.99);
 
-    const recommendedMinQuote =
-      totalCost / (1 - requiredMargin / 100);
+    let recommendedMinQuote = totalCost;
 
-    /* ===== DECISION ===== */
+    if (requiredMargin > 0 && requiredMargin < 100) {
+      recommendedMinQuote =
+        totalCost / (1 - requiredMargin / 100);
+    }
+
     let decision = 'REVIEW';
     let reason = 'Review shipment before approval.';
 
@@ -838,6 +816,7 @@ router.post(
       shipmentRisk,
     });
   }
+);
 );
 
 /* ================= MANUFACTURING ================= */
@@ -1353,6 +1332,7 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
 
