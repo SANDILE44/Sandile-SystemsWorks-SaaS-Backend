@@ -817,7 +817,7 @@ router.post(
     });
   }
 );
-);
+
 
 /* ================= MANUFACTURING ================= */
 router.post(
@@ -1332,6 +1332,7 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
 
