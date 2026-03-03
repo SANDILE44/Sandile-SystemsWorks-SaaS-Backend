@@ -4,14 +4,18 @@ import User from '../models/User.js';
 
 const router = express.Router();
 
+/* =================================================
+   SUBSCRIPTION ACCESS LOGIC
+================================================= */
+
 function hasCalculatorAccess(user) {
   const now = Date.now();
-  const calcSub = user.subscriptions?.calculators;
+  const calcSub = user?.subscriptions?.calculators;
+
   if (!calcSub) return false;
 
   // Active subscription
   if (calcSub.status === 'active') {
-    // If no end date → allow
     if (!calcSub.subscriptionEnd) return true;
 
     if (new Date(calcSub.subscriptionEnd).getTime() > now) {
@@ -32,30 +36,43 @@ function hasCalculatorAccess(user) {
 }
 
 async function requireActiveAccess(req, res, next) {
-  const user = await User.findById(req.user.id).select('subscriptions');
+  try {
+    const user = await User.findById(req.user.id).select('subscriptions');
 
-  if (!user) {
-    return res.status(401).json({ error: 'User not found' });
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    if (!hasCalculatorAccess(user)) {
+      return res.status(403).json({ error: 'Payment required' });
+    }
+
+    next();
+  } catch (err) {
+    console.error('Access check error:', err.message);
+    return res.status(500).json({ error: 'Access validation failed' });
   }
-
-  // 🔍 TEMP DEBUG (remove after confirmation)
-  console.log('ACCESS CHECK', {
-    userId: req.user.id,
-    subscription: user.subscriptions?.calculators,
-    now: new Date().toISOString(),
-  });
-
-  if (!hasCalculatorAccess(user)) {
-    return res.status(403).json({ error: 'Payment required' });
-  }
-
-  next();
 }
 
-/* ---------------- ACCESS ENDPOINT ---------------- */
+/* =================================================
+   ACCESS CHECK ENDPOINT
+================================================= */
+
 router.get('/access', auth, requireActiveAccess, (req, res) => {
   res.json({ allowed: true });
-}) 
+});
+
+/* =================================================
+   HELPER FUNCTIONS (DECLARE ONCE FOR ALL CALCULATORS)
+================================================= */
+
+const toNum = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const clamp = (n, min, max) =>
+  Math.min(max, Math.max(min, n));
 
 /* =================================================
    AGRICULTURE CALCULATORS (BACKEND AUTHORITY)
@@ -1332,6 +1349,7 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
 
