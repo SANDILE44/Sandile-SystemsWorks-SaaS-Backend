@@ -55,7 +55,7 @@ async function requireActiveAccess(req, res, next) {
 /* ---------------- ACCESS ENDPOINT ---------------- */
 router.get('/access', auth, requireActiveAccess, (req, res) => {
   res.json({ allowed: true });
-});
+}) 
 
 /* =================================================
    AGRICULTURE CALCULATORS (BACKEND AUTHORITY)
@@ -257,7 +257,7 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
     labor,
     fixed,
     discountPct,
-    otHours,
+    otHours, 
     otRate,
     variableCosts,
     contingencyPct,
@@ -834,46 +834,235 @@ router.post(
 
     /* Simple risk badge (shipment-level) */
     let shipmentRisk = 'Low';
+const express = require('express');
+const router = express.Router();
+
+const auth = require('../../middleware/auth');
+const requireActiveAccess = require('../../middleware/requireActiveAccess');
+
+/* =====================================================
+   HELPER FUNCTIONS
+===================================================== */
+
+const toNum = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const clamp = (n, min, max) =>
+  Math.min(max, Math.max(min, n));
+
+/* =====================================================
+   1️⃣ MONTHLY OPERATIONS ANALYSIS
+   POST /api/calculators/logistics/business
+===================================================== */
+
+router.post(
+  '/business',
+  auth,
+  requireActiveAccess,
+  (req, res) => {
+
+    const shipments = Math.max(0, Math.floor(toNum(req.body.shipments)));
+    const revenuePer = Math.max(0, toNum(req.body.revenuePer));
+    const fuel = Math.max(0, toNum(req.body.fuel));
+    const labor = Math.max(0, toNum(req.body.labor));
+    const maintenance = Math.max(0, toNum(req.body.maintenance));
+    const fixed = Math.max(0, toNum(req.body.fixed));
+
+    /* ===== CORE ===== */
+    const totalRevenue = shipments * revenuePer;
+    const totalCosts = fuel + labor + maintenance + fixed;
+    const profit = totalRevenue - totalCosts;
+
+    const costPerShipment =
+      shipments > 0 ? totalCosts / shipments : 0;
+
+    const profitPerShipment =
+      shipments > 0 ? profit / shipments : 0;
+
+    const margin =
+      totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+
+    const roi =
+      totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
+
+    const breakEvenShipments =
+      revenuePer > 0 ? Math.ceil(totalCosts / revenuePer) : 0;
+
+    const annualProfit = profit * 12;
+
+    /* ===== COST STRUCTURE ===== */
+    const fuelPercent =
+      totalCosts > 0 ? (fuel / totalCosts) * 100 : 0;
+
+    const laborPercent =
+      totalCosts > 0 ? (labor / totalCosts) * 100 : 0;
+
+    const maintenancePercent =
+      totalCosts > 0 ? (maintenance / totalCosts) * 100 : 0;
+
+    const fixedPercent =
+      totalCosts > 0 ? (fixed / totalCosts) * 100 : 0;
+
+    /* ===== STATUS ===== */
+    let status = 'Break-even';
+    if (profit > 0) status = 'Profitable';
+    if (profit < 0) status = 'Loss';
+
+    /* ===== RISK ENGINE ===== */
+    let riskLevel = 'Low';
+
+    if (profit < 0) riskLevel = 'High';
+    else if (margin < 8) riskLevel = 'High';
+    else if (margin < 15) riskLevel = 'Medium';
+
+    const targetMargin = 20;
+
+    const recommendedPricePerShipment =
+      costPerShipment > 0
+        ? costPerShipment / (1 - targetMargin / 100)
+        : 0;
+
+    let safetyStatus = 'Healthy';
+    if (profit < 0) safetyStatus = 'Critical';
+    else if (margin < 10) safetyStatus = 'At Risk';
+
+    let advice =
+      'Operations stable. Maintain margin discipline.';
+
+    if (profit < 0) {
+      advice =
+        'Operating at a loss. Increase pricing or reduce largest cost driver immediately.';
+    } else if (margin < 10) {
+      advice =
+        'Margins are thin. Small cost increases could wipe out profit.';
+    } else if (margin >= 20) {
+      advice =
+        'Strong margin zone. You have operational buffer and pricing power.';
+    }
+
+    res.json({
+      shipments,
+      totalRevenue,
+      totalCosts,
+      profit,
+      costPerShipment,
+      profitPerShipment,
+      margin,
+      roi,
+      breakEvenShipments,
+      annualProfit,
+      fuelPercent,
+      laborPercent,
+      maintenancePercent,
+      fixedPercent,
+      status,
+      riskLevel,
+      recommendedPricePerShipment,
+      safetyStatus,
+      advice,
+    });
+  }
+);
+
+/* =====================================================
+   2️⃣ SHIPMENT RISK & PRICING ENGINE
+   POST /api/calculators/logistics/shipment
+===================================================== */
+
+router.post(
+  '/shipment',
+  auth,
+  requireActiveAccess,
+  (req, res) => {
+
+    const quote = Math.max(0, toNum(req.body.quote));
+    const minMargin = clamp(toNum(req.body.minMargin), 0, 99.99);
+    const buffer = clamp(toNum(req.body.buffer), 0, 99.99);
+
+    const distance = Math.max(0, toNum(req.body.distance));
+    const fuelPerKm = Math.max(0, toNum(req.body.fuelPerKm));
+    const vehiclePerKm = Math.max(0, toNum(req.body.vehiclePerKm));
+    const loadFactor = clamp(toNum(req.body.loadFactor) || 100, 1, 200);
+
+    const drivingHours = Math.max(0, toNum(req.body.drivingHours));
+    const waitHours = Math.max(0, toNum(req.body.waitHours));
+    const driverRate = Math.max(0, toNum(req.body.driverRate));
+
+    const tolls = Math.max(0, toNum(req.body.tolls));
+    const permits = Math.max(0, toNum(req.body.permits));
+    const otherFees = Math.max(0, toNum(req.body.otherFees));
+
+    const cargoValue = Math.max(0, toNum(req.body.cargoValue));
+    const insuranceRate = clamp(toNum(req.body.insuranceRate), 0, 100);
+
+    const duties = Math.max(0, toNum(req.body.duties));
+    const handling = Math.max(0, toNum(req.body.handling));
+    const passThrough = Math.max(0, toNum(req.body.passThrough));
+
+    /* ===== COST BUILD ===== */
+    const fuelCost = distance * fuelPerKm;
+    const vehicleCost = distance * vehiclePerKm;
+    const timeCost = (drivingHours + waitHours) * driverRate;
+    const insuranceCost = (insuranceRate / 100) * cargoValue;
+
+    const baseCost =
+      fuelCost +
+      vehicleCost +
+      timeCost +
+      tolls +
+      permits +
+      otherFees +
+      insuranceCost +
+      duties +
+      handling +
+      passThrough;
+
+    const loadMultiplier = 100 / loadFactor;
+    const totalCost = baseCost * loadMultiplier;
+
+    const profit = quote - totalCost;
+    const margin =
+      quote > 0 ? (profit / quote) * 100 : 0;
+
+    const requiredMargin =
+      clamp(minMargin + buffer, 0, 99.99);
+
+    const recommendedMinQuote =
+      totalCost / (1 - requiredMargin / 100);
+
+    /* ===== DECISION ===== */
+    let decision = 'REVIEW';
+    let reason = 'Review shipment before approval.';
+
+    if (quote === 0) {
+      decision = 'REVIEW';
+      reason = 'Enter client quote to evaluate.';
+    } else if (margin >= requiredMargin) {
+      decision = 'APPROVE';
+      reason = 'Shipment meets required margin and buffer.';
+    } else if (margin < minMargin) {
+      decision = 'REJECT';
+      reason = 'Shipment below minimum margin requirement.';
+    }
+
+    let shipmentRisk = 'Low';
     if (profit < 0) shipmentRisk = 'High';
-    else if (margin < minMargin) shipmentRisk = 'High';
     else if (margin < requiredMargin) shipmentRisk = 'Medium';
 
     res.json({
-      quote,
-
-      minMargin,
-      buffer,
-      requiredMargin,
-
-      // cost breakdown
-      fuelCost,
-      vehicleCost,
-      timeCost,
-      insuranceCost,
-
-      tolls,
-      permits,
-      otherFees,
-      duties,
-      handling,
-      passThrough,
-
-      baseCost,
-      loadFactor,
-      loadMultiplier,
-
       totalCost,
       profit,
       margin,
-
       recommendedMinQuote,
-
       decision,
       reason,
       shipmentRisk,
     });
   }
 );
+
 
 
 
@@ -1390,6 +1579,7 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
 
