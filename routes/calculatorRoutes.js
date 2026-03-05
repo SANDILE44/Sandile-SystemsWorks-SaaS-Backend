@@ -835,6 +835,93 @@ router.post(
   }
 );
 
+/* =====================================================
+   LOGISTICS — FREIGHT IMPORT / EXPORT ENGINE
+   POST /logistics/freight
+===================================================== */
+router.post(
+  '/logistics/freight',
+  auth,
+  requireActiveAccess,
+  (req, res) => {
+
+    const quote = Math.max(0, toNum(req.body.quote));
+
+    const cargoValue = Math.max(0, toNum(req.body.cargoValue));
+    const insuranceRate = clamp(toNum(req.body.insuranceRate), 0, 100);
+
+    const freightCost = Math.max(0, toNum(req.body.freightCost));
+    const fuelSurcharge = Math.max(0, toNum(req.body.fuelSurcharge));
+
+    const dutyRate = clamp(toNum(req.body.dutyRate), 0, 100);
+    const customsFees = Math.max(0, toNum(req.body.customsFees));
+
+    const portFees = Math.max(0, toNum(req.body.portFees));
+    const handlingFees = Math.max(0, toNum(req.body.handlingFees));
+
+    const inlandTransport = Math.max(0, toNum(req.body.inlandTransport));
+
+    const tollCosts = Math.max(0, toNum(req.body.tollCosts));
+    const otherCosts = Math.max(0, toNum(req.body.otherCosts));
+
+    /* ---------- CALCULATIONS ---------- */
+
+    const insuranceCost = (insuranceRate / 100) * cargoValue;
+    const duties = (dutyRate / 100) * cargoValue;
+
+    const totalCost =
+      freightCost +
+      fuelSurcharge +
+      insuranceCost +
+      duties +
+      customsFees +
+      portFees +
+      handlingFees +
+      inlandTransport +
+      tollCosts +
+      otherCosts;
+
+    const profit = quote - totalCost;
+
+    const margin =
+      quote > 0 ? (profit / quote) * 100 : 0;
+
+    const breakEvenQuote = totalCost;
+
+    /* ---------- DECISION ENGINE ---------- */
+
+    let decision = 'REVIEW';
+    let reason = 'Shipment needs evaluation.';
+
+    if (profit < 0) {
+      decision = 'REJECT';
+      reason = 'Shipment results in a loss.';
+    } else if (margin < 10) {
+      decision = 'REVIEW';
+      reason = 'Margin is very thin for freight risk.';
+    } else if (margin >= 20) {
+      decision = 'APPROVE';
+      reason = 'Healthy freight margin.';
+    }
+
+    let riskLevel = 'Low';
+    if (profit < 0) riskLevel = 'High';
+    else if (margin < 15) riskLevel = 'Medium';
+
+    res.json({
+      insuranceCost,
+      duties,
+      totalCost,
+      profit,
+      margin,
+      breakEvenQuote,
+      decision,
+      reason,
+      riskLevel
+    });
+
+  }
+);
 
 /* ================= MANUFACTURING ================= */
 router.post(
@@ -1349,6 +1436,7 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
 });
 
 export default router;
+
 
 
 
