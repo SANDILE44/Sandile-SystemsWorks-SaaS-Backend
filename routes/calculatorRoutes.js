@@ -924,42 +924,119 @@ router.post(
 );
 
 /* ================= MANUFACTURING ================= */
+
 router.post(
   '/manufacturing/business',
   auth,
   requireActiveAccess,
   (req, res) => {
-    const { units, price, material, labor, fixed, operational } = req.body;
+
+    let {
+      units,
+      price,
+      material,
+      labor,
+      fixed,
+      operational
+    } = req.body;
+
+
+    /* ===============================
+       SAFE NUMBER CONVERSION
+    ================================ */
+
+    units = Number(units) || 0;
+    price = Number(price) || 0;
+    material = Number(material) || 0;
+    labor = Number(labor) || 0;
+    fixed = Number(fixed) || 0;
+    operational = Number(operational) || 0;
+
+
+    /* ===============================
+       CORE CALCULATIONS
+    ================================ */
 
     const revenue = units * price;
-    const totalCosts = units * material + labor + fixed + operational;
+
+    const totalCosts =
+      (units * material) +
+      labor +
+      fixed +
+      operational;
+
     const profit = revenue - totalCosts;
 
-    const costPerUnit = units ? totalCosts / units : 0;
-    const profitPerUnit = units ? profit / units : 0;
+
+    /* ===============================
+       UNIT ECONOMICS
+    ================================ */
+
+    const costPerUnit =
+      units > 0 ? totalCosts / units : 0;
+
+    const profitPerUnit =
+      units > 0 ? profit / units : 0;
+
+    const revenuePerUnit =
+      units > 0 ? revenue / units : 0;
+
+
+    /* ===============================
+       BREAK-EVEN ANALYSIS
+    ================================ */
+
+    const contributionMargin =
+      price - material;
 
     const breakeven =
-      price - material > 0 ? Math.ceil(fixed / (price - material)) : 0;
+      contributionMargin > 0
+        ? Math.ceil((fixed + operational) / contributionMargin)
+        : 0;
 
-    const roi = totalCosts ? (profit / totalCosts) * 100 : 0;
-    const margin = revenue ? (profit / revenue) * 100 : 0;
+
+    /* ===============================
+       PERFORMANCE METRICS
+    ================================ */
+
+    const roi =
+      totalCosts > 0
+        ? (profit / totalCosts) * 100
+        : 0;
+
+    const margin =
+      revenue > 0
+        ? (profit / revenue) * 100
+        : 0;
+
+
+    /* ===============================
+       PROJECTIONS
+    ================================ */
 
     const monthlyRevenue = revenue;
     const annualRevenue = revenue * 12;
+
+
+    /* ===============================
+       RESPONSE
+    ================================ */
 
     res.json({
       units,
       revenue,
       totalCosts,
       costPerUnit,
+      revenuePerUnit,
       profitPerUnit,
       profit,
       breakeven,
       roi,
       margin,
       monthlyRevenue,
-      annualRevenue,
+      annualRevenue
     });
+
   }
 );
 
