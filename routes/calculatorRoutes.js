@@ -1227,13 +1227,20 @@ router.post('/rnd/investment', auth, requireActiveAccess, (req, res) => {
   });
 
 
-/* ================= PROPERTY INVESTMENT / REAL ESTATE ================= */
-
+/* ================= REAL ESTATE ================= */
 router.post('/property/investment', auth, requireActiveAccess, (req, res) => {
 
-const { cost, rent, expenses, vacancyPct, years } = req.body;
+const cost = Number(req.body.cost) || 0;
+const rent = Number(req.body.rent) || 0;
+const expenses = Number(req.body.expenses) || 0;
+const vacancyPct = Number(req.body.vacancyPct) || 0;
+const years = Number(req.body.years) || 0;
 
-const vacancyFactor = 1 - vacancyPct / 100;
+const vacancyFactor = Math.max(0.01, 1 - vacancyPct / 100);
+
+/* ===============================
+INCOME & EXPENSES
+============================== */
 
 const annualIncome = rent * 12 * vacancyFactor;
 const annualExpenses = expenses * 12;
@@ -1250,10 +1257,10 @@ const monthlyProfit = annualIncome / 12 - annualExpenses / 12;
 const annualProfit = annualIncome - annualExpenses;
 
 /* ===============================
-BREAK-EVEN RENT
+BREAK EVEN RENT
 ============================== */
 
-const breakEvenRent = (expenses / vacancyFactor) || 0;
+const breakEvenRent = vacancyFactor ? expenses / vacancyFactor : 0;
 
 /* ===============================
 RISK LEVEL
@@ -1293,10 +1300,9 @@ breakEvenRent,
 riskLevel,
 decision,
 reason
-
-});
 });
 
+});
 /* ================= RENEWABLE ENERGY ================= */
 router.post('/energy/renewable', auth, requireActiveAccess, (req, res) => {
   const { install, maintenance, revenue, years } = req.body;
