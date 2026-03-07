@@ -1225,36 +1225,76 @@ router.post('/rnd/investment', auth, requireActiveAccess, (req, res) => {
     roi,
     payback,
   });
-});
 
-/* ================= PROPERTY INVESTMENT/ REAL ESTATE ================= */
+
+/* ================= PROPERTY INVESTMENT / REAL ESTATE ================= */
+
 router.post('/property/investment', auth, requireActiveAccess, (req, res) => {
-  const { cost, rent, expenses, vacancyPct, years } = req.body;
 
-  const annualIncome = rent * 12 * (1 - vacancyPct / 100);
-  const annualExpenses = expenses * 12;
+const { cost, rent, expenses, vacancyPct, years } = req.body;
 
-  const totalIncome = annualIncome * years;
-  const totalExpenses = annualExpenses * years;
-  const profit = totalIncome - totalExpenses;
+const vacancyFactor = 1 - vacancyPct / 100;
 
-  const roi = cost ? (profit / cost) * 100 : 0;
-  const margin = totalIncome ? (profit / totalIncome) * 100 : 0;
+const annualIncome = rent * 12 * vacancyFactor;
+const annualExpenses = expenses * 12;
 
-  const monthlyProfit = annualIncome / 12 - annualExpenses / 12;
+const totalIncome = annualIncome * years;
+const totalExpenses = annualExpenses * years;
 
-  const annualProfit = annualIncome - annualExpenses;
+const profit = totalIncome - totalExpenses;
 
-  res.json({
-    annualIncome,
-    totalIncome,
-    totalExpenses,
-    profit,
-    roi,
-    margin,
-    monthlyProfit,
-    annualProfit,
-  });
+const roi = cost ? (profit / cost) * 100 : 0;
+const margin = totalIncome ? (profit / totalIncome) * 100 : 0;
+
+const monthlyProfit = annualIncome / 12 - annualExpenses / 12;
+const annualProfit = annualIncome - annualExpenses;
+
+/* ===============================
+BREAK-EVEN RENT
+============================== */
+
+const breakEvenRent = (expenses / vacancyFactor) || 0;
+
+/* ===============================
+RISK LEVEL
+============================== */
+
+let riskLevel = "Low";
+
+if (roi < 8) riskLevel = "High";
+else if (roi < 15) riskLevel = "Medium";
+
+/* ===============================
+DECISION ENGINE
+============================== */
+
+let decision = "BUY";
+let reason = "Investment produces strong returns with acceptable risk.";
+
+if (roi < 8 || monthlyProfit <= 0) {
+decision = "AVOID";
+reason = "Property does not produce sufficient return or monthly profit.";
+}
+else if (roi < 15) {
+decision = "REVIEW";
+reason = "Returns are moderate. Verify expenses, price, and rental demand.";
+}
+
+res.json({
+annualIncome,
+totalIncome,
+totalExpenses,
+profit,
+roi,
+margin,
+monthlyProfit,
+annualProfit,
+breakEvenRent,
+riskLevel,
+decision,
+reason
+
+});
 });
 
 /* ================= RENEWABLE ENERGY ================= */
@@ -1464,6 +1504,7 @@ router.post('/software/business', auth, requireActiveAccess, (req, res) => {
   const roi = totalCosts ? (profit / totalCosts) * 100 : 0;
 
   res.json({ units, revenue, totalCosts, profit, margin, roi });
+});
 });
 
 /* ================= TELECOM ================= */
