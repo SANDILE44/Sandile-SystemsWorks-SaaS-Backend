@@ -1227,8 +1227,19 @@ router.post('/rnd/investment', auth, requireActiveAccess, (req, res) => {
   });
 
 
-/* ================= REAL ESTATE ================= */
-router.post('/property/investment', auth, requireActiveAccess, (req, res) => {
+/* ================= REAL ESTATE INVESTMENT ================= */
+
+router.post(
+"/property/investment",
+auth,
+requireActiveAccess,
+(req, res) => {
+
+try{
+
+/* ===============================
+SAFE NUMBER CONVERSION
+=============================== */
 
 const cost = Number(req.body.cost) || 0;
 const rent = Number(req.body.rent) || 0;
@@ -1236,58 +1247,97 @@ const expenses = Number(req.body.expenses) || 0;
 const vacancyPct = Number(req.body.vacancyPct) || 0;
 const years = Number(req.body.years) || 0;
 
+/* ===============================
+VACANCY FACTOR
+=============================== */
+
 const vacancyFactor = Math.max(0.01, 1 - vacancyPct / 100);
 
 /* ===============================
-INCOME & EXPENSES
-============================== */
+INCOME CALCULATIONS
+=============================== */
 
 const annualIncome = rent * 12 * vacancyFactor;
+
 const annualExpenses = expenses * 12;
 
 const totalIncome = annualIncome * years;
+
 const totalExpenses = annualExpenses * years;
+
+/* ===============================
+PROFIT
+=============================== */
 
 const profit = totalIncome - totalExpenses;
 
-const roi = cost ? (profit / cost) * 100 : 0;
-const margin = totalIncome ? (profit / totalIncome) * 100 : 0;
-
 const monthlyProfit = annualIncome / 12 - annualExpenses / 12;
+
 const annualProfit = annualIncome - annualExpenses;
 
 /* ===============================
-BREAK EVEN RENT
-============================== */
+INVESTMENT METRICS
+=============================== */
 
-const breakEvenRent = vacancyFactor ? expenses / vacancyFactor : 0;
+const roi = cost > 0 ? (profit / cost) * 100 : 0;
+
+const margin = totalIncome > 0
+? (profit / totalIncome) * 100
+: 0;
+
+/* ===============================
+BREAK EVEN RENT
+=============================== */
+
+const breakEvenRent =
+vacancyFactor > 0
+? expenses / vacancyFactor
+: 0;
 
 /* ===============================
 RISK LEVEL
-============================== */
+=============================== */
 
 let riskLevel = "Low";
 
-if (roi < 8) riskLevel = "High";
-else if (roi < 15) riskLevel = "Medium";
+if(roi < 8)
+riskLevel = "High";
+else if(roi < 15)
+riskLevel = "Medium";
 
 /* ===============================
 DECISION ENGINE
-============================== */
+=============================== */
 
 let decision = "BUY";
-let reason = "Investment produces strong returns with acceptable risk.";
 
-if (roi < 8 || monthlyProfit <= 0) {
+let reason =
+"Investment produces strong returns with acceptable risk.";
+
+if(roi < 8 || monthlyProfit <= 0){
+
 decision = "AVOID";
-reason = "Property does not produce sufficient return or monthly profit.";
+
+reason =
+"Property does not produce sufficient return or monthly profit.";
+
 }
-else if (roi < 15) {
+
+else if(roi < 15){
+
 decision = "REVIEW";
-reason = "Returns are moderate. Verify expenses, price, and rental demand.";
+
+reason =
+"Returns are moderate. Verify expenses, price, and rental demand.";
+
 }
+
+/* ===============================
+RESPONSE
+=============================== */
 
 res.json({
+
 annualIncome,
 totalIncome,
 totalExpenses,
@@ -1300,9 +1350,23 @@ breakEvenRent,
 riskLevel,
 decision,
 reason
-});
 
 });
+
+}
+catch(err){
+
+console.error(err);
+
+res.status(500).json({
+error: "Real estate calculator error"
+});
+
+}
+
+}
+);
+
 /* ================= RENEWABLE ENERGY ================= */
 router.post('/energy/renewable', auth, requireActiveAccess, (req, res) => {
   const { install, maintenance, revenue, years } = req.body;
