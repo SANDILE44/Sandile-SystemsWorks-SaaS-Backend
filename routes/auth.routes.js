@@ -13,9 +13,7 @@ const router = express.Router();
    GOOGLE CLIENT
 ========================= */
 
-const googleClient = new OAuth2Client(
-  "1064963647591-k76sv5dgcm3ihrsbmaccr63rij0vikda.apps.googleusercontent.com"
-);
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 /* =========================
    JWT HELPER
@@ -75,6 +73,7 @@ router.post("/signup", async (req, res) => {
         trialEnd: user.trialEnd,
       },
     });
+
   } catch (err) {
     console.error("Signup error:", err);
     res.status(500).json({ error: "Signup failed" });
@@ -89,15 +88,19 @@ router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({
-      email: email.toLowerCase().trim(),
-    });
+    const cleanEmail = email.toLowerCase().trim();
 
-    if (!user) return res.status(400).json({ error: "Invalid credentials" });
+    const user = await User.findOne({ email: cleanEmail });
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid credentials" });
+    }
 
     const ok = await bcrypt.compare(password, user.passwordHash);
 
-    if (!ok) return res.status(400).json({ error: "Invalid credentials" });
+    if (!ok) {
+      return res.status(400).json({ error: "Invalid credentials" });
+    }
 
     const token = signToken(user._id);
 
@@ -111,6 +114,7 @@ router.post("/login", async (req, res) => {
         subscriptions: user.subscriptions,
       },
     });
+
   } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Login failed" });
@@ -125,10 +129,13 @@ router.post("/google", async (req, res) => {
   try {
     const { token } = req.body;
 
+    if (!token) {
+      return res.status(400).json({ error: "Google token missing" });
+    }
+
     const ticket = await googleClient.verifyIdToken({
       idToken: token,
-      audience:
-        "1064963647591-k76sv5dgcm3ihrsbmaccr63rij0vikda.apps.googleusercontent.com",
+      audience: process.env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
@@ -161,6 +168,7 @@ router.post("/google", async (req, res) => {
         email: user.email,
       },
     });
+
   } catch (err) {
     console.error("Google login error:", err);
     res.status(500).json({ error: "Google login failed" });
@@ -172,12 +180,21 @@ router.post("/google", async (req, res) => {
 ========================= */
 
 router.get("/profile", auth, async (req, res) => {
-  const user = await User.findById(req.user.id).select(
-    "name email subscriptions recentCalculators"
-  );
 
-  res.json({ user });
+  try {
+
+    const user = await User.findById(req.user.id).select(
+      "name email subscriptions recentCalculators"
+    );
+
+    res.json({ user });
+
+  } catch (err) {
+
+    res.status(500).json({ error: "Failed to fetch profile" });
+
+  }
+
 });
 
 export default router;
-
