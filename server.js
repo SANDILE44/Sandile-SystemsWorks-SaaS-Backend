@@ -14,6 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 /* ---------------- MIDDLEWARE ---------------- */
+
 app.use(
   cors({
     origin: [
@@ -28,19 +29,28 @@ app.use(
 app.use(express.json());
 
 /* ---------------- HEALTH CHECK ---------------- */
+
 app.get('/', (req, res) => {
   res.json({ status: 'Sandile SystemsWorks API running' });
 });
 
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 /* ---------------- ROUTES ---------------- */
+
 app.use('/api/auth', authRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/calculators', calculatorsRoutes);
 
 /* ---------------- START SERVER ---------------- */
+
 connectDB()
   .then(() => {
-    app.listen(PORT, () => console.log(`✅ Server running on ${PORT}`));
+    app.listen(PORT, () => {
+      console.log(`✅ Server running on ${PORT}`);
+    });
   })
   .catch((err) => {
     console.error('❌ DB connect failed:', err.message);
