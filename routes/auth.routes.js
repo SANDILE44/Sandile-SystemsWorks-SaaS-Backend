@@ -1,37 +1,50 @@
-import express from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
+import express from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { OAuth2Client } from "google-auth-library";
 
-import User from '../models/User.js';
-import auth from '../middleware/auth.js';
+import User from "../models/User.js";
+import auth from "../middleware/auth.js";
 
 const router = express.Router();
 
 /* =========================
+   GOOGLE CLIENT
+========================= */
+
+const googleClient = new OAuth2Client(
+  "1064963647591-k76sv5dgcm3ihrsbmaccr63rij0vikda.apps.googleusercontent.com"
+);
+
+/* =========================
    JWT HELPER
 ========================= */
+
 function signToken(userId) {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: '7d',
+    expiresIn: "7d",
   });
 }
+
 /* =========================
    SIGNUP (3-DAY TRIAL)
 ========================= */
-router.post('/signup', async (req, res) => {
+
+router.post("/signup", async (req, res) => {
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
-    return res.status(400).json({ error: 'All fields are required' });
+    return res.status(400).json({ error: "All fields are required" });
   }
 
   try {
     const cleanEmail = email.toLowerCase().trim();
 
     const exists = await User.findOne({ email: cleanEmail });
+
     if (exists) {
-      return res.status(400).json({ error: 'User already exists' });
+      return res.status(400).json({ error: "User already exists" });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -44,8 +57,6 @@ router.post('/signup', async (req, res) => {
       name: name.trim(),
       email: cleanEmail,
       passwordHash,
-
-      // 🔑 THESE ARE WHAT YOUR CALCULATORS USE
       hasPaid: false,
       trialEnd,
       subscriptionEnd: null,
@@ -54,7 +65,7 @@ router.post('/signup', async (req, res) => {
     const token = signToken(user._id);
 
     res.status(201).json({
-      message: 'Signup successful (3-day trial)',
+      message: "Signup successful (3-day trial)",
       token,
       user: {
         id: user._id,
@@ -65,28 +76,33 @@ router.post('/signup', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Signup error:', err);
-    res.status(500).json({ error: 'Signup failed' });
+    console.error("Signup error:", err);
+    res.status(500).json({ error: "Signup failed" });
   }
 });
 
 /* =========================
    LOGIN
 ========================= */
-router.post('/login', async (req, res) => {
+
+router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
-    if (!user) return res.status(400).json({ error: 'Invalid credentials' });
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+    });
+
+    if (!user) return res.status(400).json({ error: "Invalid credentials" });
 
     const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) return res.status(400).json({ error: 'Invalid credentials' });
+
+    if (!ok) return res.status(400).json({ error: "Invalid credentials" });
 
     const token = signToken(user._id);
 
     res.json({
-      message: 'Login successful',
+      message: "Login successful",
       token,
       user: {
         id: user._id,
@@ -96,17 +112,68 @@ router.post('/login', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed' });
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Login failed" });
+  }
+});
+
+/* =========================
+   GOOGLE LOGIN
+========================= */
+
+router.post("/auth/google", async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience:
+        "1064963647591-k76sv5dgcm3ihrsbmaccr63rij0vikda.apps.googleusercontent.com",
+    });
+
+    const payload = ticket.getPayload();
+
+    const email = payload.email.toLowerCase();
+    const name = payload.name;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      const trialEnd = new Date();
+      trialEnd.setDate(trialEnd.getDate() + 3);
+
+      user = await User.create({
+        name,
+        email,
+        passwordHash: crypto.randomBytes(32).toString("hex"),
+        hasPaid: false,
+        trialEnd,
+      });
+    }
+
+    const jwtToken = signToken(user._id);
+
+    res.json({
+      token: jwtToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+    });
+  } catch (err) {
+    console.error("Google login error:", err);
+    res.status(500).json({ error: "Google login failed" });
   }
 });
 
 /* =========================
    PROFILE (AUTH REQUIRED)
 ========================= */
-router.get('/profile', auth, async (req, res) => {
+
+router.get("/profile", auth, async (req, res) => {
   const user = await User.findById(req.user.id).select(
-    'name email subscriptions recentCalculators'
+    "name email subscriptions recentCalculators"
   );
 
   res.json({ user });
