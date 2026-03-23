@@ -1388,89 +1388,66 @@ router.post('/energy/renewable', auth, requireActiveAccess, (req, res) => {
 });
 
 /* ================= RESTAURANT ================= */
-router.post('/restaurant/operations', auth, requireActiveAccess, (req, res) => {
-  const { tables, coversPerTable, avgCheck, foodPct, labor, fixed, days } =
-    req.body;
+router.post(
+  '/restaurant/operations',
+  auth,
+  requireActiveAccess,
+  (req, res) => {
+    // ===== SAFE INPUTS =====
+    const tables = Math.max(0, toNum(req.body.tables));
+    const coversPerTable = Math.max(0, toNum(req.body.coversPerTable));
+    const avgCheck = Math.max(0, toNum(req.body.avgCheck));
+    const foodPct = Math.max(0, toNum(req.body.foodPct));
+    const labor = Math.max(0, toNum(req.body.labor));
+    const fixed = Math.max(0, toNum(req.body.fixed));
+    const days = Math.max(0, toNum(req.body.days));
 
-  /* =========================
-     SAFE INPUTS
-  ========================= */
-  const safe = (n) => Math.max(0, Number(n) || 0);
+    // ===== CORE CALCULATIONS =====
+    const dailyCovers = tables * coversPerTable;
+    const monthlyRevenue = dailyCovers * avgCheck * days;
 
-  const t = safe(tables);
-  const c = safe(coversPerTable);
-  const a = safe(avgCheck);
-  const fPct = safe(foodPct);
-  const l = safe(labor);
-  const fx = safe(fixed);
-  const d = safe(days);
+    const foodCost = monthlyRevenue * (foodPct / 100);
+    const totalCosts = foodCost + labor + fixed;
 
-  /* =========================
-     CORE CALCULATIONS
-  ========================= */
-  const dailyCovers = t * c;
-  const monthlyRevenue = dailyCovers * a * d;
+    const profit = monthlyRevenue - totalCosts;
 
-  const foodCost = monthlyRevenue * (fPct / 100);
-  const totalCosts = foodCost + l + fx;
+    const margin = monthlyRevenue ? (profit / monthlyRevenue) * 100 : 0;
+    const costRatio = monthlyRevenue ? (totalCosts / monthlyRevenue) * 100 : 0;
+    const profitPerCover = dailyCovers && days ? profit / (dailyCovers * days) : 0;
+    const breakevenCovers = avgCheck > 0 && days > 0 ? Math.ceil(totalCosts / (avgCheck * days)) : 0;
+    const monthlyProfit = profit;
+    const annualProfit = profit * 12;
 
-  const profit = monthlyRevenue - totalCosts;
+    // ===== DECISION ENGINE =====
+    let status = 'Break-even';
+    if (profit > 0) status = 'Profitable';
+    if (profit < 0) status = 'Loss';
 
-  const margin = monthlyRevenue
-    ? (profit / monthlyRevenue) * 100
-    : 0;
+    let advice = 'Monitor pricing and costs for better performance.';
+    if (margin < 10) advice = 'Margin is low — consider increasing pricing or reducing costs.';
+    else if (margin < 20) advice = 'Healthy margin, but there is room for optimization.';
+    else advice = 'Strong profitability zone.';
 
-  const costRatio = monthlyRevenue
-    ? (totalCosts / monthlyRevenue) * 100
-    : 0;
-
-  const profitPerCover =
-    dailyCovers && d ? profit / (dailyCovers * d) : 0;
-
-  const breakevenCovers =
-    a > 0 && d > 0
-      ? Math.ceil(totalCosts / (a * d))
-      : null;
-
-  const monthlyProfit = profit;
-  const annualProfit = profit * 12;
-
-  /* =========================
-     DECISION ENGINE
-  ========================= */
-  let status = 'Break-even';
-  let advice = 'Monitor pricing and costs for better performance.';
-
-  if (profit > 0) status = 'Profitable';
-  if (profit < 0) status = 'Loss';
-
-  if (margin < 10) {
-    advice = 'Margin is low — consider increasing pricing or reducing costs.';
-  } else if (margin < 20) {
-    advice = 'Healthy margin, but there is room for optimization.';
-  } else {
-    advice = 'Strong profitability zone.';
+    // ===== RESPONSE =====
+    res.json({
+      dailyCovers,
+      monthlyRevenue,
+      foodCost,
+      totalCosts,
+      profit,
+      margin,
+      costRatio,
+      profitPerCover,
+      breakevenCovers,
+      monthlyProfit,
+      annualProfit,
+      status,
+      advice,
+    });
   }
+);
 
-  /* =========================
-     RESPONSE
-  ========================= */
-  res.json({
-    dailyCovers,
-    monthlyRevenue,
-    foodCost,
-    totalCosts,
-    profit,
-    margin,
-    costRatio,
-    profitPerCover,
-    breakevenCovers,
-    monthlyProfit,
-    annualProfit,
-    status,
-    advice,
-  });
-});
+
 /* ================= RETAIL ================= */
 router.post('/retail/business', auth, requireActiveAccess, (req, res) => {
   const { units, cost, price, fixed, labor, operational } = req.body;
