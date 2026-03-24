@@ -1617,8 +1617,7 @@ router.post('/software/business', auth, requireActiveAccess, (req, res) => {
   const roi = totalCosts ? (profit / totalCosts) * 100 : 0;
 
   res.json({ units, revenue, totalCosts, profit, margin, roi });
-});
-});
+});
 
 /* ================= TELECOM ================= */
 router.post('/telecom/business', auth, requireActiveAccess, (req, res) => {
