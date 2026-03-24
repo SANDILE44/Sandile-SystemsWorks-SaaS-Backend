@@ -274,12 +274,13 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
     labor,
     fixed,
     discountPct,
-    otHours, 
-    otRate,
-    variableCosts,
-    contingencyPct,
+    otHours = 0, 
+    otRate = 0,
+    variableCosts = 0,
+    contingencyPct = 0,
   } = req.body;
 
+  // ===== CORE CALCULATIONS =====
   const baseRevenue = hours * rate;
   const overtimeRevenue = otHours * otRate;
   const totalRevenue = baseRevenue + overtimeRevenue;
@@ -294,15 +295,38 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
     expenses + labor + fixed + variableCosts + contingencyAmount;
 
   const profit = revenueAfterDiscount - totalCosts;
+
+  // ===== KPIs =====
   const profitPerHour = hours > 0 ? profit / hours : 0;
-
-  const margin = revenueAfterDiscount
-    ? (profit / revenueAfterDiscount) * 100
-    : 0;
-
+  const costPerHour = hours > 0 ? totalCosts / hours : 0;
+  const margin = revenueAfterDiscount ? (profit / revenueAfterDiscount) * 100 : 0;
   const roi = totalCosts ? (profit / totalCosts) * 100 : 0;
   const breakevenHours = rate > 0 ? totalCosts / rate : 0;
 
+  // ===== DECISION ENGINE =====
+  let decision = 'Break-even';
+  let riskLevel = 'Medium';
+  let advice = 'Monitor project closely for costs and revenue.';
+
+  if (profit <= 0) {
+    decision = '❌ Do Not Take';
+    riskLevel = 'High';
+    advice = 'This project will lose money. Increase your rates or reduce costs.';
+  } else if (margin < 10) {
+    decision = '⚠ High Risk';
+    riskLevel = 'High';
+    advice = 'Margin is extremely thin. Reconsider discounts or scope.';
+  } else if (margin < 20) {
+    decision = '🟡 Moderate Risk';
+    riskLevel = 'Medium';
+    advice = 'Profitable but tight. Monitor expenses and overtime.';
+  } else {
+    decision = '✅ Strong Project';
+    riskLevel = 'Low';
+    advice = 'Healthy margin. Good project to take on.';
+  }
+
+  // ===== RESPONSE =====
   res.json({
     baseRevenue,
     overtimeRevenue,
@@ -313,12 +337,15 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
     totalCosts,
     profit,
     profitPerHour,
+    costPerHour,
     margin,
     roi,
     breakevenHours,
+    decision,
+    riskLevel,
+    advice,
   });
 });
-
 /* ================= EDUCATION ================= */
 router.post('/education/school', auth, requireActiveAccess, (req, res) => {
   const { students, tuition, staff, facilities, supplies, fixed } = req.body;
