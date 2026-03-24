@@ -1415,95 +1415,80 @@ router.post('/energy/renewable', auth, requireActiveAccess, (req, res) => {
 });
 
 
-/* ================= RESTAURANT ================= */
-router.post(
-  '/restaurant/operations',
-  auth,
-  requireActiveAccess,
-  (req, res) => {
 
-    // ===== SAFE INPUTS =====
-    const tables = Math.max(0, toNum(req.body.tables));
-    const coversPerTable = Math.max(0, toNum(req.body.coversPerTable));
-    const avgCheck = Math.max(0, toNum(req.body.avgCheck));
-    const foodPct = clamp(toNum(req.body.foodPct), 0, 100);
-    const labor = Math.max(0, toNum(req.body.labor));
-    const fixed = Math.max(0, toNum(req.body.fixed));
-    const days = Math.max(0, toNum(req.body.days));
+// ================= RESTAURANT CALCULATOR FRONTEND =================
+// routes/restaurant.js
+const express = require('express');
+const router = express.Router();
 
-    // ===== CORE CALCULATIONS =====
-    const dailyCovers = tables * coversPerTable;
-    const monthlyCovers = dailyCovers * days;
+// Middleware placeholders (replace with your auth functions)
+const auth = (req, res, next) => next();
+const requireActiveAccess = (req, res, next) => next();
 
-    const monthlyRevenue = monthlyCovers * avgCheck;
+// Helper functions
+const toNum = val => parseFloat(val) || 0;
+const clamp = (val, min, max) => Math.min(Math.max(val, min), max);
 
-    const foodCost = monthlyRevenue * (foodPct / 100);
+router.post('/restaurant/operations', auth, requireActiveAccess, (req, res) => {
+  // ===== SAFE INPUTS =====
+  const tables = Math.max(0, toNum(req.body.tables));
+  const coversPerTable = Math.max(0, toNum(req.body.coversPerTable));
+  const avgCheck = Math.max(0, toNum(req.body.avgCheck));
+  const foodPct = clamp(toNum(req.body.foodPct), 0, 100);
+  const labor = Math.max(0, toNum(req.body.labor));
+  const fixed = Math.max(0, toNum(req.body.fixed));
+  const days = Math.max(0, toNum(req.body.days));
 
-    const totalCosts = foodCost + labor + fixed;
+  // ===== CORE CALCULATIONS =====
+  const dailyCovers = tables * coversPerTable;
+  const monthlyCovers = dailyCovers * days;
 
-    const profit = monthlyRevenue - totalCosts;
+  const monthlyRevenue = monthlyCovers * avgCheck;
+  const foodCost = monthlyRevenue * (foodPct / 100);
+  const totalCosts = foodCost + labor + fixed;
+  const profit = monthlyRevenue - totalCosts;
+  const margin = monthlyRevenue ? (profit / monthlyRevenue) * 100 : 0;
+  const costRatio = monthlyRevenue ? (totalCosts / monthlyRevenue) * 100 : 0;
+  const profitPerCover = monthlyCovers ? profit / monthlyCovers : 0;
+  const breakevenCovers = avgCheck > 0 && days > 0 ? Math.ceil(totalCosts / (avgCheck * days)) : 0;
+  const monthlyProfit = profit;
+  const annualProfit = profit * 12;
 
-    const margin =
-      monthlyRevenue ? (profit / monthlyRevenue) * 100 : 0;
+  // ===== STATUS ENGINE =====
+  let status = 'Break-even';
+  if (profit > 0) status = 'Profitable';
+  if (profit < 0) status = 'Loss';
 
-    const costRatio =
-      monthlyRevenue ? (totalCosts / monthlyRevenue) * 100 : 0;
+  // ===== DECISION ADVICE ENGINE =====
+  let advice = 'Monitor pricing and costs for better performance.';
 
-    const profitPerCover =
-      monthlyCovers ? profit / monthlyCovers : 0;
-
-    const breakevenCovers =
-      avgCheck > 0 && days > 0
-        ? Math.ceil(totalCosts / (avgCheck * days))
-        : 0;
-
-    const monthlyProfit = profit;
-    const annualProfit = profit * 12;
-
-    // ===== STATUS ENGINE =====
-    let status = 'Break-even';
-
-    if (profit > 0) status = 'Profitable';
-    if (profit < 0) status = 'Loss';
-
-    // ===== DECISION ENGINE =====
-    let advice =
-      'Monitor pricing and costs for better performance.';
-
-    if (profit < 0) {
-      advice =
-        'Operating at a loss. Increase pricing or reduce food/labor costs.';
-    } else if (margin < 10) {
-      advice =
-        'Margins very thin. Small cost increases could eliminate profit.';
-    } else if (margin < 20) {
-      advice =
-        'Healthy margin. Optimization can increase profit.';
-    } else {
-      advice =
-        'Strong profitability zone. Business model is solid.';
-    }
-
-    res.json({
-      dailyCovers,
-      monthlyRevenue,
-      foodCost,
-      totalCosts,
-      profit,
-      margin,
-      costRatio,
-      profitPerCover,
-      breakevenCovers,
-      monthlyProfit,
-      annualProfit,
-      status,
-      advice
-    });
-
+  if (profit < 0) {
+    advice = 'Operating at a loss. Increase pricing or reduce food/labor costs.';
+  } else if (margin < 10) {
+    advice = 'Margins very thin. Small cost increases could eliminate profit.';
+  } else if (margin < 20) {
+    advice = 'Healthy margin. Optimization can increase profit.';
+  } else {
+    advice = 'Strong profitability zone. Business model is solid.';
   }
-);
 
-
+  // ===== RETURN JSON =====
+  res.json({
+    dailyCovers,
+    monthlyRevenue,
+    foodCost,
+    totalCosts,
+    profit,
+    margin,
+    costRatio,
+    profitPerCover,
+    breakevenCovers,
+    monthlyProfit,
+    annualProfit,
+    status,
+    advice
+  });
+});
 /* ================= RETAIL ================= */
 router.post('/retail/business', auth, requireActiveAccess, (req, res) => {
   const { units, cost, price, fixed, labor, operational } = req.body;
