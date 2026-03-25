@@ -1252,7 +1252,7 @@ router.post('/rnd/investment', auth, requireActiveAccess, (req, res) => {
     roi,
     payback,
   });
-
+});
 
 /* ================= REAL ESTATE INVESTMENT ================= */
 
