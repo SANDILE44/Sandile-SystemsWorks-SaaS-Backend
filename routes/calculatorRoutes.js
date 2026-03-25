@@ -1416,13 +1416,6 @@ router.post('/energy/renewable', auth, requireActiveAccess, (req, res) => {
 
 
 /* ================= RESTAURANT ================= */
-const toNum = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
-const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
-
 router.post(
   '/restaurant/operations',
   auth,
