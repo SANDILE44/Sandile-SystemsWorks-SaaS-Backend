@@ -1415,14 +1415,19 @@ router.post('/energy/renewable', auth, requireActiveAccess, (req, res) => {
 });
 
 
-
 /* ================= RESTAURANT ================= */
+const toNum = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+
 router.post(
   '/restaurant/operations',
   auth,
   requireActiveAccess,
   (req, res) => {
-
     const tables         = Math.max(0, toNum(req.body.tables));
     const coversPerTable = Math.max(0, toNum(req.body.coversPerTable));
     const avgCheck       = Math.max(0, toNum(req.body.avgCheck));
@@ -1439,18 +1444,10 @@ router.post(
     const totalCosts = foodCost + labor + fixed;
     const profit     = monthlyRevenue - totalCosts;
 
-    const margin =
-      monthlyRevenue > 0 ? (profit / monthlyRevenue) * 100 : 0;
-
-    const costRatio =
-      monthlyRevenue > 0 ? (totalCosts / monthlyRevenue) * 100 : 0;
-
-    const profitPerCover =
-      monthlyCovers > 0 ? profit / monthlyCovers : 0;
-
-    const laborRatio =
-      monthlyRevenue > 0 ? (labor / monthlyRevenue) * 100 : 0;
-
+    const margin     = monthlyRevenue > 0 ? (profit / monthlyRevenue) * 100 : 0;
+    const costRatio  = monthlyRevenue > 0 ? (totalCosts / monthlyRevenue) * 100 : 0;
+    const profitPerCover = monthlyCovers > 0 ? profit / monthlyCovers : 0;
+    const laborRatio = monthlyRevenue > 0 ? (labor / monthlyRevenue) * 100 : 0;
     const breakevenCovers =
       avgCheck > 0 && days > 0
         ? Math.ceil(totalCosts / (avgCheck * days))
@@ -1481,12 +1478,10 @@ router.post(
       advice    = 'Healthy margins. Scaling operations could significantly increase profit.';
     }
 
-    /* FOOD COST WARNING */
     if (foodPct > 35) {
       advice = 'Food cost above industry standard of 35%. Reduce waste or renegotiate supplier prices.';
     }
 
-    /* LABOR WARNING */
     if (laborRatio > 30) {
       advice = 'Labor cost exceeds 30% of revenue. Review staffing levels or increase covers per shift.';
     }
@@ -1509,11 +1504,8 @@ router.post(
       riskLevel,
       advice
     });
-
   }
 );
-
-
 /* ================= RETAIL ================= */
 router.post('/retail/business', auth, requireActiveAccess, (req, res) => {
   const { units, cost, price, fixed, labor, operational } = req.body;
@@ -1665,22 +1657,4 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
   });
 });
 
-export default router;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+export default router;
