@@ -265,22 +265,35 @@ router.post('/construction/project', auth, requireActiveAccess, (req, res) => {
   });
 });
 
+
 /* ================= CONSULTING ================= */
 router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
-  const {
+  let {
     hours,
     rate,
     expenses,
     labor,
     fixed,
     discountPct,
-    otHours = 0, 
-    otRate = 0,
-    variableCosts = 0,
-    contingencyPct = 0,
+    otHours,
+    otRate,
+    variableCosts,
+    contingencyPct,
   } = req.body;
 
-  // ===== CORE CALCULATIONS =====
+  // ===== SAFE NUMBER CONVERSION =====
+  hours = Number(hours) || 0;
+  rate = Number(rate) || 0;
+  expenses = Number(expenses) || 0;
+  labor = Number(labor) || 0;
+  fixed = Number(fixed) || 0;
+  discountPct = Number(discountPct) || 0;
+  otHours = Number(otHours) || 0;
+  otRate = Number(otRate) || 0;
+  variableCosts = Number(variableCosts) || 0;
+  contingencyPct = Number(contingencyPct) || 0;
+
+  // ===== REVENUE =====
   const baseRevenue = hours * rate;
   const overtimeRevenue = otHours * otRate;
   const totalRevenue = baseRevenue + overtimeRevenue;
@@ -288,42 +301,62 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
   const discountAmount = totalRevenue * (discountPct / 100);
   const revenueAfterDiscount = totalRevenue - discountAmount;
 
+  // ===== COSTS =====
+  const baseCosts = expenses + labor + fixed + variableCosts;
+
   const contingencyAmount =
-    (expenses + labor + fixed + variableCosts) * (contingencyPct / 100);
+    baseCosts * (contingencyPct / 100);
 
-  const totalCosts =
-    expenses + labor + fixed + variableCosts + contingencyAmount;
+  const totalCosts = baseCosts + contingencyAmount;
 
+  // ===== PROFIT =====
   const profit = revenueAfterDiscount - totalCosts;
 
   // ===== KPIs =====
   const profitPerHour = hours > 0 ? profit / hours : 0;
   const costPerHour = hours > 0 ? totalCosts / hours : 0;
-  const margin = revenueAfterDiscount ? (profit / revenueAfterDiscount) * 100 : 0;
-  const roi = totalCosts ? (profit / totalCosts) * 100 : 0;
-  const breakevenHours = rate > 0 ? totalCosts / rate : 0;
+
+  const margin =
+    revenueAfterDiscount > 0
+      ? (profit / revenueAfterDiscount) * 100
+      : 0;
+
+  const roi =
+    totalCosts > 0
+      ? (profit / totalCosts) * 100
+      : 0;
+
+  const breakevenHours =
+    rate > 0
+      ? totalCosts / rate
+      : 0;
 
   // ===== DECISION ENGINE =====
-  let decision = 'Break-even';
-  let riskLevel = 'Medium';
-  let advice = 'Monitor project closely for costs and revenue.';
+  let decision = "Break-even";
+  let riskLevel = "Medium";
+  let advice =
+    "Monitor project closely for costs and revenue.";
 
   if (profit <= 0) {
-    decision = '❌ Do Not Take';
-    riskLevel = 'High';
-    advice = 'This project will lose money. Increase your rates or reduce costs.';
+    decision = "❌ Do Not Take";
+    riskLevel = "High";
+    advice =
+      "This project will lose money. Increase your rate or reduce costs.";
   } else if (margin < 10) {
-    decision = '⚠ High Risk';
-    riskLevel = 'High';
-    advice = 'Margin is extremely thin. Reconsider discounts or scope.';
+    decision = "⚠ High Risk";
+    riskLevel = "High";
+    advice =
+      "Margin is extremely thin. Reconsider discounts or scope.";
   } else if (margin < 20) {
-    decision = '🟡 Moderate Risk';
-    riskLevel = 'Medium';
-    advice = 'Profitable but tight. Monitor expenses and overtime.';
+    decision = "🟡 Moderate Risk";
+    riskLevel = "Medium";
+    advice =
+      "Profitable but tight. Monitor expenses and overtime.";
   } else {
-    decision = '✅ Strong Project';
-    riskLevel = 'Low';
-    advice = 'Healthy margin. Good project to take on.';
+    decision = "✅ Strong Project";
+    riskLevel = "Low";
+    advice =
+      "Healthy margin. Good project to take on.";
   }
 
   // ===== RESPONSE =====
@@ -346,6 +379,8 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
     advice,
   });
 });
+
+
 /* ================= EDUCATION ================= */
 router.post('/education/school', auth, requireActiveAccess, (req, res) => {
   const { students, tuition, staff, facilities, supplies, fixed } = req.body;
