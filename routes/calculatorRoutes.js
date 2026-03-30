@@ -303,60 +303,112 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
 
   // ===== COSTS =====
   const baseCosts = expenses + labor + fixed + variableCosts;
-
-  const contingencyAmount =
-    baseCosts * (contingencyPct / 100);
-
+  const contingencyAmount = baseCosts * (contingencyPct / 100);
   const totalCosts = baseCosts + contingencyAmount;
 
   // ===== PROFIT =====
   const profit = revenueAfterDiscount - totalCosts;
-
-  // ===== KPIs =====
   const profitPerHour = hours > 0 ? profit / hours : 0;
   const costPerHour = hours > 0 ? totalCosts / hours : 0;
-
-  const margin =
-    revenueAfterDiscount > 0
-      ? (profit / revenueAfterDiscount) * 100
-      : 0;
-
-  const roi =
-    totalCosts > 0
-      ? (profit / totalCosts) * 100
-      : 0;
-
-  const breakevenHours =
-    rate > 0
-      ? totalCosts / rate
-      : 0;
+  const margin = revenueAfterDiscount > 0 ? (profit / revenueAfterDiscount) * 100 : 0;
+  const roi = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
+  const breakevenHours = rate > 0 ? totalCosts / rate : 0;
 
   // ===== DECISION ENGINE =====
   let decision = "Break-even";
   let riskLevel = "Medium";
-  let advice =
-    "Monitor project closely for costs and revenue.";
+  let advice = "Monitor project closely for costs and revenue.";
+
+  // ===== STEP-BY-STEP SUGGESTIONS =====
+  const steps = [];
 
   if (profit <= 0) {
     decision = "❌ Do Not Take";
     riskLevel = "High";
-    advice =
-      "This project will lose money. Increase your rate or reduce costs.";
+    advice = "This project will lose money. Follow the steps below to fix it.";
+
+    // Suggest increasing rate
+    if (rate > 0) {
+      const suggestedRate = Math.ceil(totalCosts / hours * 1.1); // 10% margin
+      steps.push({
+        action: "Increase Hourly Rate",
+        current: rate,
+        suggested: suggestedRate,
+        reason: "Profit is negative. Raising rate will make project profitable."
+      });
+    }
+
+    // Suggest reducing fixed costs if possible
+    if (fixed > 0) {
+      const suggestedFixed = Math.max(fixed * 0.7, 0); // reduce 30%
+      steps.push({
+        action: "Reduce Fixed Costs",
+        current: fixed,
+        suggested: suggestedFixed,
+        reason: "Lowering fixed costs helps avoid loss without touching hours."
+      });
+    }
+
+    // Suggest reducing discount
+    if (discountPct > 0) {
+      steps.push({
+        action: "Reduce Discount",
+        current: discountPct,
+        suggested: Math.max(discountPct - 10, 0),
+        reason: "Reducing discount increases revenue after discount."
+      });
+    }
   } else if (margin < 10) {
     decision = "⚠ High Risk";
     riskLevel = "High";
-    advice =
-      "Margin is extremely thin. Reconsider discounts or scope.";
+    advice = "Margin is very thin. Follow the steps below.";
+
+    // Suggest raising rate slightly
+    steps.push({
+      action: "Increase Hourly Rate",
+      current: rate,
+      suggested: Math.ceil(rate * 1.1),
+      reason: "Small increase can make project safer."
+    });
+
+    // Suggest lowering variable costs
+    if (variableCosts > 0) {
+      steps.push({
+        action: "Reduce Variable Costs",
+        current: variableCosts,
+        suggested: Math.max(variableCosts * 0.8, 0),
+        reason: "Lower variable costs to increase margin."
+      });
+    }
   } else if (margin < 20) {
     decision = "🟡 Moderate Risk";
     riskLevel = "Medium";
-    advice =
-      "Profitable but tight. Monitor expenses and overtime.";
+    advice = "Profitable but tight. Small adjustments recommended.";
+
+    steps.push({
+      action: "Monitor Overtime Hours",
+      current: otHours,
+      suggested: otHours,
+      reason: "Keep overtime low to maintain margin."
+    });
+
+    steps.push({
+      action: "Monitor Expenses",
+      current: baseCosts,
+      suggested: baseCosts,
+      reason: "Track expenses to ensure margin doesn't drop."
+    });
   } else {
     decision = "✅ Strong Project";
     riskLevel = "Low";
-    advice =
-      "Healthy margin. Good project to take on.";
+    advice = "Healthy margin. Consider minor optimizations.";
+
+    steps.push({
+      action: "Consider Negotiating Higher Rate",
+      current: rate,
+      suggested: rate,
+      reason: "Optional: you may increase rate if client allows."
+    });
   }
 
   // ===== RESPONSE =====
@@ -377,6 +429,7 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
     decision,
     riskLevel,
     advice,
+    steps, // <-- new field for step-by-step guidance
   });
 });
 
