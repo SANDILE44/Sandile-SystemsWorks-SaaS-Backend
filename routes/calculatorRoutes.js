@@ -1762,57 +1762,73 @@ router.post('/restaurant/operations', auth, requireActiveAccess, (req, res) => {
   }  
 
   /* ==========================
-     STEP-BY-STEP GUIDANCE
-  ========================== */
-  const steps = [];
+   STEP-BY-STEP GUIDANCE
+========================== */
+const steps = [];
 
-  steps.push({
-    step: 'Revenue vs Costs',
-    message: totalCosts <= monthlyRevenue
-      ? 'Revenue covers costs. Operations are sustainable.'
-      : 'Revenue is below costs. Consider increasing pricing or reducing major costs.'
-  });
+/* Step 1 — Revenue vs Costs */
+steps.push({
+  step: 'Revenue vs Costs',
+  message: totalCosts <= monthlyRevenue
+    ? `Revenue of R${monthlyRevenue.toFixed(2)} covers all costs. Operations are sustainable.`
+    : `Revenue of R${monthlyRevenue.toFixed(2)} is below total costs of R${totalCosts.toFixed(2)}. You are losing R${Math.abs(profit).toFixed(2)} per month. Increase your average check or serve more customers daily.`
+});
 
-  steps.push({
-    step: 'Profit Margin Check',
-    message: margin >= 20
-      ? `Strong margin (${margin.toFixed(2)}%). Good buffer for unexpected costs.`
-      : margin >= 10
-      ? `Moderate margin (${margin.toFixed(2)}%). Monitor cost changes carefully.`
-      : `Low margin (${margin.toFixed(2)}%). High risk. Review pricing or reduce costs.`
-  });
+/* Step 2 — Profit Margin */
+steps.push({
+  step: 'Profit Margin Check',
+  message: margin >= 20
+    ? `Strong margin of ${margin.toFixed(2)}%. Your restaurant is in a healthy position. Maintain current pricing and cost discipline.`
+    : margin >= 10
+    ? `Moderate margin of ${margin.toFixed(2)}%. You need to improve by ${(20 - margin).toFixed(2)}% to reach a healthy margin. Try increasing your average check by R${((totalCosts / monthlyCovers) * 0.1).toFixed(2)} per customer.`
+    : `Dangerous margin of ${margin.toFixed(2)}%. Immediate action needed. Either increase prices or reduce costs. A 10% price increase would add R${(monthlyRevenue * 0.1).toFixed(2)} to your revenue.`
+});
 
-  steps.push({
-    step: 'Largest Cost Contributor',
-    message: (() => {
-      const costs = [
-        { name: 'Food', value: foodCost },
-        { name: 'Labor', value: labor },
-        { name: 'Fixed', value: fixed }
-      ];
-      const maxCost = costs.reduce((a, b) => (a.value > b.value ? a : b));
-      return `Largest cost driver is ${maxCost.name} (R${maxCost.value.toFixed(2)}). Consider optimization.`;
-    })()
-  });
+/* Step 3 — Food Cost */
+steps.push({
+  step: 'Food Cost Control',
+  message: foodPct <= 28
+    ? `Food cost is excellent at ${foodPct}%. Industry standard is 28-35%. You have strong cost control.`
+    : foodPct <= 35
+    ? `Food cost is acceptable at ${foodPct}%. Monitor portion sizes and supplier prices to keep it below 30%.`
+    : `Food cost is too high at ${foodPct}%. Industry standard is below 35%. Reducing to 30% would save you R${((foodPct - 30) / 100 * monthlyRevenue).toFixed(2)} per month. Renegotiate supplier prices or reduce waste.`
+});
 
-  steps.push({
-    step: 'Break-even Analysis',
-    message: `Minimum covers per day to break even: ${breakevenCovers}. Ensure you consistently meet or exceed this number.`
-  });
+/* Step 4 — Labor Cost */
+steps.push({
+  step: 'Labor Cost Review',
+  message: laborRatio <= 30
+    ? `Labor cost is healthy at ${laborRatio.toFixed(2)}% of revenue. Keep staffing levels aligned with covers served.`
+    : `Labor cost is high at ${laborRatio.toFixed(2)}% of revenue. Industry standard is below 30%. Consider restructuring shifts or increasing covers per shift to spread labor cost. Reducing labor to 30% of revenue would save R${(labor - monthlyRevenue * 0.3).toFixed(2)} per month.`
+});
 
-  steps.push({
-    step: 'Profit per Cover',
-    message: `Profit per cover: R${profitPerCover.toFixed(2)}. Helps to evaluate pricing strategy per table.`
-  });
+/* Step 5 — Break-even */
+steps.push({
+  step: 'Break-even Target',
+  message: dailyCovers >= breakevenCovers
+    ? `You are serving ${dailyCovers} covers daily — ${dailyCovers - breakevenCovers} above your break-even of ${breakevenCovers}. You have a healthy safety buffer.`
+    : `You need ${breakevenCovers} covers per day to break even but are only serving ${dailyCovers}. You need ${breakevenCovers - dailyCovers} more customers per day. Consider promotions, extended hours or marketing to increase foot traffic.`
+});
 
-  steps.push({
-    step: 'Risk Assessment',
-    message: profit <= 0
-      ? 'Operations currently at a loss. Immediate action required.'
-      : margin < 10
-      ? 'Margins are thin. Watch for any increase in costs.'
-      : 'Profit healthy. Continue monitoring for efficiency.'
-  });
+/* Step 6 — Profit per Cover */
+steps.push({
+  step: 'Profit Per Customer',
+  message: profitPerCover <= 0
+    ? `You are losing R${Math.abs(profitPerCover).toFixed(2)} on every customer served. Increase your average check or reduce costs urgently.`
+    : profitPerCover < 20
+    ? `Profit per customer is R${profitPerCover.toFixed(2)}. This is low. Upselling drinks, desserts or premium dishes could increase this significantly.`
+    : `Profit per customer is R${profitPerCover.toFixed(2)}. Good. Focus on increasing customer volume to grow total profit.`
+});
+
+/* Step 7 — Annual Outlook */
+steps.push({
+  step: 'Annual Outlook',
+  message: annualProfit <= 0
+    ? `At current performance your annual loss would be R${Math.abs(annualProfit).toFixed(2)}. Immediate changes are needed to avoid long term damage.`
+    : annualProfit < 100000
+    ? `Annual profit projection is R${annualProfit.toFixed(2)}. Modest but viable. Focus on growing covers per day or increasing average check to improve this.`
+    : `Annual profit projection is R${annualProfit.toFixed(2)}. Strong performance. Consider scaling — adding tables, extending hours or opening a second location.`
+});
 
   /* ==========================
      RESPONSE
