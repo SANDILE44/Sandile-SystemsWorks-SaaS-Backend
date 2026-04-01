@@ -348,7 +348,6 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
   const baseRevenue = hours * rate;
   const overtimeRevenue = otHours * otRate;
   const totalRevenue = baseRevenue + overtimeRevenue;
-
   const discountAmount = totalRevenue * (discountPct / 100);
   const revenueAfterDiscount = totalRevenue - discountAmount;
 
@@ -370,97 +369,114 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
   let riskLevel = "Medium";
   let advice = "Monitor project closely for costs and revenue.";
 
-  // ===== STEP-BY-STEP SUGGESTIONS =====
+  // ===== STEP-BY-STEP GUIDANCE =====
   const steps = [];
 
+  // Step 1: Revenue vs Costs
+  steps.push({
+    step: "Revenue vs Costs",
+    message: `Your total revenue after discount is R${revenueAfterDiscount.toFixed(2)} and total costs are R${totalCosts.toFixed(2)}.`
+  });
+
+  // Step 2: Profit Check
   if (profit <= 0) {
     decision = "❌ Do Not Take";
     riskLevel = "High";
-    advice = "This project will lose money. Follow the steps below to fix it.";
+    advice = "This project will lose money. Adjust before committing.";
+    steps.push({
+      step: "Profit Check",
+      message: `Profit is negative (R${profit.toFixed(2)}). You would lose money if you take this project.`
+    });
 
-    // Suggest increasing rate
     if (rate > 0) {
-      const suggestedRate = Math.ceil(totalCosts / hours * 1.1); // 10% margin
+      const suggestedRate = Math.ceil(totalCosts / hours * 1.1);
       steps.push({
-        action: "Increase Hourly Rate",
-        current: rate,
-        suggested: suggestedRate,
-        reason: "Profit is negative. Raising rate will make project profitable."
+        step: "Adjust Hourly Rate",
+        message: `Increase your hourly rate from R${rate} to R${suggestedRate} to cover costs and make a profit.`
       });
     }
 
-    // Suggest reducing fixed costs if possible
     if (fixed > 0) {
-      const suggestedFixed = Math.max(fixed * 0.7, 0); // reduce 30%
+      const suggestedFixed = Math.max(fixed * 0.7, 0);
       steps.push({
-        action: "Reduce Fixed Costs",
-        current: fixed,
-        suggested: suggestedFixed,
-        reason: "Lowering fixed costs helps avoid loss without touching hours."
+        step: "Reduce Fixed Costs",
+        message: `Consider lowering fixed costs from R${fixed} to R${suggestedFixed} to reduce risk of loss.`
       });
     }
 
-    // Suggest reducing discount
     if (discountPct > 0) {
+      const suggestedDiscount = Math.max(discountPct - 10, 0);
       steps.push({
-        action: "Reduce Discount",
-        current: discountPct,
-        suggested: Math.max(discountPct - 10, 0),
-        reason: "Reducing discount increases revenue after discount."
+        step: "Reduce Discount",
+        message: `Cut your discount from ${discountPct}% to ${suggestedDiscount}% to improve revenue.`
       });
     }
+
   } else if (margin < 10) {
     decision = "⚠ High Risk";
     riskLevel = "High";
-    advice = "Margin is very thin. Follow the steps below.";
-
-    // Suggest raising rate slightly
+    advice = "Profit exists but margin is very tight. Small adjustments recommended.";
     steps.push({
-      action: "Increase Hourly Rate",
-      current: rate,
-      suggested: Math.ceil(rate * 1.1),
-      reason: "Small increase can make project safer."
+      step: "Margin Check",
+      message: `Margin is low at ${margin.toFixed(2)}%. Project is profitable but at high risk.`
     });
 
-    // Suggest lowering variable costs
-    if (variableCosts > 0) {
+    if (rate > 0) {
       steps.push({
-        action: "Reduce Variable Costs",
-        current: variableCosts,
-        suggested: Math.max(variableCosts * 0.8, 0),
-        reason: "Lower variable costs to increase margin."
+        step: "Slightly Increase Rate",
+        message: `A small increase in hourly rate can make the project safer.`
       });
     }
+
+    if (variableCosts > 0) {
+      const suggestedVariable = Math.max(variableCosts * 0.8, 0);
+      steps.push({
+        step: "Reduce Variable Costs",
+        message: `Lower variable costs from R${variableCosts} to R${suggestedVariable} to protect margin.`
+      });
+    }
+
   } else if (margin < 20) {
     decision = "🟡 Moderate Risk";
     riskLevel = "Medium";
-    advice = "Profitable but tight. Small adjustments recommended.";
+    advice = "Profitable but tight. Monitor key numbers.";
 
     steps.push({
-      action: "Monitor Overtime Hours",
-      current: otHours,
-      suggested: otHours,
-      reason: "Keep overtime low to maintain margin."
+      step: "Margin Check",
+      message: `Margin is ${margin.toFixed(2)}%. Keep an eye on costs and hours.`
     });
 
     steps.push({
-      action: "Monitor Expenses",
-      current: baseCosts,
-      suggested: baseCosts,
-      reason: "Track expenses to ensure margin doesn't drop."
+      step: "Track Overtime",
+      message: `Overtime hours are ${otHours}. Keep them low to maintain profitability.`
     });
+
+    steps.push({
+      step: "Expense Monitoring",
+      message: `Base costs are R${baseCosts}. Track them closely.`
+    });
+
   } else {
     decision = "✅ Strong Project";
     riskLevel = "Low";
     advice = "Healthy margin. Consider minor optimizations.";
 
     steps.push({
-      action: "Consider Negotiating Higher Rate",
-      current: rate,
-      suggested: rate,
-      reason: "Optional: you may increase rate if client allows."
+      step: "Strong Margin",
+      message: `Margin is ${margin.toFixed(2)}%. Project is healthy and profitable.`
+    });
+
+    steps.push({
+      step: "Optional Optimization",
+      message: `You may negotiate a slightly higher rate or reduce costs to increase profit further.`
     });
   }
+
+  // Step 3: Breakeven
+  steps.push({
+    step: "Breakeven Hours",
+    message: `You need to work at least ${breakevenHours.toFixed(2)} hours to cover total costs.`
+  });
 
   // ===== RESPONSE =====
   res.json({
@@ -480,10 +496,9 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
     decision,
     riskLevel,
     advice,
-    steps, // <-- new field for step-by-step guidance
+    steps, // step-by-step guidance for frontend
   });
 });
-
 
 /* ================= EDUCATION ================= */
 router.post('/education/school', auth, requireActiveAccess, (req, res) => {
