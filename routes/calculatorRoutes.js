@@ -839,146 +839,39 @@ router.post('/it/services', auth, requireActiveAccess, (req, res) => {
   });
 });
 
-/* ================= LOGISTICS ROUTES ================= */
-    /* =====================================================
+/* =====================================================
    LOGISTICS — MONTHLY OPERATIONS
    POST /logistics/business
 ===================================================== */
-router.post(
-  '/logistics/business',
-  auth,
-  requireActiveAccess,
-  (req, res) => {
-
-    const shipments = Math.max(0, Math.floor(toNum(req.body.shipments)));
-    const revenuePer = Math.max(0, toNum(req.body.revenuePer));
-    const fuel = Math.max(0, toNum(req.body.fuel));
-    const labor = Math.max(0, toNum(req.body.labor));
-    const maintenance = Math.max(0, toNum(req.body.maintenance));
-    const fixed = Math.max(0, toNum(req.body.fixed));
-
-    const totalRevenue = shipments * revenuePer;
-    const totalCosts = fuel + labor + maintenance + fixed;
-    const profit = totalRevenue - totalCosts;
-
-    const costPerShipment =
-      shipments > 0 ? totalCosts / shipments : 0;
-
-    const profitPerShipment =
-      shipments > 0 ? profit / shipments : 0;
-
-    const margin =
-      totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
-
-    const roi =
-      totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
-
-    const breakEvenShipments =
-      revenuePer > 0 ? Math.ceil(totalCosts / revenuePer) : 0;
-
-    const annualProfit = profit * 12;
-
-    const fuelPercent =
-      totalCosts > 0 ? (fuel / totalCosts) * 100 : 0;
-
-    const laborPercent =
-      totalCosts > 0 ? (labor / totalCosts) * 100 : 0;
-
-    const maintenancePercent =
-      totalCosts > 0 ? (maintenance / totalCosts) * 100 : 0;
-
-    const fixedPercent =
-      totalCosts > 0 ? (fixed / totalCosts) * 100 : 0;
-
-    let status = 'Break-even';
-    if (profit > 0) status = 'Profitable';
-    if (profit < 0) status = 'Loss';
-
-    let riskLevel = 'Low';
-    if (profit < 0) riskLevel = 'High';
-    else if (margin < 8) riskLevel = 'High';
-    else if (margin < 15) riskLevel = 'Medium';
-
-    const targetMargin = 20;
-
-    const recommendedPricePerShipment =
-      costPerShipment > 0
-        ? costPerShipment / (1 - targetMargin / 100)
-        : 0;
-
-    let safetyStatus = 'Healthy';
-    if (profit < 0) safetyStatus = 'Critical';
-    else if (margin < 10) safetyStatus = 'At Risk';
-
-    let advice =
-      'Operations stable. Maintain margin discipline.';
-
-    if (profit < 0) {
-      advice =
-        'Operating at a loss. Increase pricing or reduce largest cost driver immediately.';
-    } else if (margin < 10) {
-      advice =
-        'Margins are thin. Small cost increases could wipe out profit.';
-    } else if (margin >= 20) {
-      advice =
-        'Strong margin zone. You have operational buffer and pricing power.';
-    }
-
-    res.json({
-      shipments,
-      totalRevenue,
-      totalCosts,
-      profit,
-      costPerShipment,
-      profitPerShipment,
-      margin,
-      roi,
-      breakEvenShipments,
-      annualProfit,
-      fuelPercent,
-      laborPercent,
-      maintenancePercent,
-      fixedPercent,
-      status,
-      riskLevel,
-      recommendedPricePerShipment,
-      safetyStatus,
-      advice,
-    });
-  }
-);
-
-
-
-/* =====================================================
-   LOGISTICS — MONTHLY OPERATIONS
-===================================================== */
 router.post('/logistics/business', auth, requireActiveAccess, (req, res) => {
 
-  const shipments = Math.max(0, Math.floor(toNum(req.body.shipments)));
-  const revenuePer = Math.max(0, toNum(req.body.revenuePer));
-  const fuel = Math.max(0, toNum(req.body.fuel));
-  const labor = Math.max(0, toNum(req.body.labor));
-  const maintenance = Math.max(0, toNum(req.body.maintenance));
-  const fixed = Math.max(0, toNum(req.body.fixed));
+  const shipments    = Math.max(0, Math.floor(toNum(req.body.shipments)));
+  const revenuePer   = Math.max(0, toNum(req.body.revenuePer));
+  const fuel         = Math.max(0, toNum(req.body.fuel));
+  const labor        = Math.max(0, toNum(req.body.labor));
+  const maintenance  = Math.max(0, toNum(req.body.maintenance));
+  const fixed        = Math.max(0, toNum(req.body.fixed));
 
-  const totalRevenue = shipments * revenuePer;
-  const totalCosts = fuel + labor + maintenance + fixed;
-  const profit = totalRevenue - totalCosts;
-  const costPerShipment = shipments > 0 ? totalCosts / shipments : 0;
+  const totalRevenue      = shipments * revenuePer;
+  const totalCosts        = fuel + labor + maintenance + fixed;
+  const profit            = totalRevenue - totalCosts;
+  const costPerShipment   = shipments > 0 ? totalCosts / shipments : 0;
   const profitPerShipment = shipments > 0 ? profit / shipments : 0;
-  const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
-  const roi = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
+  const margin            = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+  const roi               = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
   const breakEvenShipments = revenuePer > 0 ? Math.ceil(totalCosts / revenuePer) : 0;
-  const annualProfit = profit * 12;
+  const annualProfit      = profit * 12;
 
-  // Percent cost breakdown
-  const fuelPercent = totalCosts > 0 ? (fuel / totalCosts) * 100 : 0;
-  const laborPercent = totalCosts > 0 ? (labor / totalCosts) * 100 : 0;
+  const fuelPercent        = totalCosts > 0 ? (fuel / totalCosts) * 100 : 0;
+  const laborPercent       = totalCosts > 0 ? (labor / totalCosts) * 100 : 0;
   const maintenancePercent = totalCosts > 0 ? (maintenance / totalCosts) * 100 : 0;
-  const fixedPercent = totalCosts > 0 ? (fixed / totalCosts) * 100 : 0;
+  const fixedPercent       = totalCosts > 0 ? (fixed / totalCosts) * 100 : 0;
 
-  // Statuses
+  const targetMargin = 20;
+  const recommendedPricePerShipment = costPerShipment > 0
+    ? costPerShipment / (1 - targetMargin / 100)
+    : 0;
+
   let status = 'Break-even';
   if (profit > 0) status = 'Profitable';
   if (profit < 0) status = 'Loss';
@@ -987,11 +880,6 @@ router.post('/logistics/business', auth, requireActiveAccess, (req, res) => {
   if (profit < 0) riskLevel = 'High';
   else if (margin < 8) riskLevel = 'High';
   else if (margin < 15) riskLevel = 'Medium';
-
-  const targetMargin = 20;
-  const recommendedPricePerShipment = costPerShipment > 0
-    ? costPerShipment / (1 - targetMargin / 100)
-    : 0;
 
   let safetyStatus = 'Healthy';
   if (profit < 0) safetyStatus = 'Critical';
@@ -1002,50 +890,79 @@ router.post('/logistics/business', auth, requireActiveAccess, (req, res) => {
   else if (margin < 10) advice = 'Margins are thin. Small cost increases could wipe out profit.';
   else if (margin >= 20) advice = 'Strong margin zone. You have operational buffer and pricing power.';
 
-  // ================== STEP-BY-STEP GUIDANCE ==================
-  let steps = [];
+  /* =====================================================
+     STEP-BY-STEP GUIDANCE
+  ===================================================== */
+  const steps = [];
 
+  /* Step 1 — Revenue vs Costs */
   steps.push({
-    step: 'Revenue vs Costs',
+    step: 'Revenue vs Total Costs',
     message: totalRevenue >= totalCosts
-      ? 'Revenue covers all costs. Good start.'
-      : 'Revenue is lower than total costs. Review pricing or reduce largest cost driver.'
+      ? `Revenue of R${totalRevenue.toFixed(2)} covers all costs of R${totalCosts.toFixed(2)}. You are making R${profit.toFixed(2)} profit this month.`
+      : `Revenue of R${totalRevenue.toFixed(2)} is below total costs of R${totalCosts.toFixed(2)}. You are losing R${Math.abs(profit).toFixed(2)} per month. Increase your rate per shipment or reduce your largest cost immediately.`
   });
 
+  /* Step 2 — Profit Margin */
   steps.push({
-    step: 'Profit Margin Analysis',
+    step: 'Profit Margin Check',
     message: margin >= 20
-      ? 'Margin is strong. You have buffer for unexpected costs.'
+      ? `Strong margin of ${margin.toFixed(2)}%. Industry standard for logistics is 15-25%. You are in a healthy position.`
       : margin >= 10
-      ? 'Margin is moderate. Monitor expenses closely.'
-      : 'Margin is low. Consider increasing rates or cutting major expenses.'
+      ? `Moderate margin of ${margin.toFixed(2)}%. You need ${(20 - margin).toFixed(2)}% more to reach a strong position. Increasing your rate per shipment by R${(recommendedPricePerShipment - revenuePer).toFixed(2)} would achieve this.`
+      : margin > 0
+      ? `Dangerous margin of ${margin.toFixed(2)}%. Any fuel price increase or breakdown will eliminate your profit. Raise your rate per shipment to at least R${recommendedPricePerShipment.toFixed(2)} to achieve 20% margin.`
+      : `No margin. You are losing money on every shipment. Your recommended rate per shipment is R${recommendedPricePerShipment.toFixed(2)} to reach 20% margin.`
   });
 
-  // Highlight largest cost driver
-  const costs = [
-    { name: 'Fuel', value: fuel },
-    { name: 'Labor', value: labor },
-    { name: 'Maintenance', value: maintenance },
-    { name: 'Fixed Costs', value: fixed }
-  ];
-  const maxCost = costs.reduce((a, b) => (a.value > b.value ? a : b));
+  /* Step 3 — Largest Cost Driver */
   steps.push({
     step: 'Largest Cost Driver',
-    message: `Your largest cost is ${maxCost.name} (${maxCost.value}). Review if it can be optimized.`
+    message: (() => {
+      const costs = [
+        { name: 'Fuel', value: fuel, pct: fuelPercent },
+        { name: 'Labor', value: labor, pct: laborPercent },
+        { name: 'Maintenance', value: maintenance, pct: maintenancePercent },
+        { name: 'Fixed Costs', value: fixed, pct: fixedPercent }
+      ];
+      const sorted = [...costs].sort((a, b) => b.value - a.value);
+      const top = sorted[0];
+      return `Your largest cost is ${top.name} at R${top.value.toFixed(2)} — ${top.pct.toFixed(1)}% of total costs. A 10% reduction in ${top.name} would save R${(top.value * 0.1).toFixed(2)} per month and add ${((top.value * 0.1 / totalRevenue) * 100).toFixed(2)}% to your margin.`;
+    })()
   });
 
+  /* Step 4 — Pricing Recommendation */
   steps.push({
-    step: 'Pricing Recommendation',
-    message: `Recommended price per shipment to target ${targetMargin}% margin: R${recommendedPricePerShipment.toFixed(2)}. Adjust pricing carefully.`
+    step: 'Recommended Rate Per Shipment',
+    message: revenuePer >= recommendedPricePerShipment
+      ? `Your current rate of R${revenuePer.toFixed(2)} per shipment meets the target margin of ${targetMargin}%. Maintain this pricing.`
+      : `Your current rate of R${revenuePer.toFixed(2)} per shipment is below the recommended R${recommendedPricePerShipment.toFixed(2)}. Increasing by R${(recommendedPricePerShipment - revenuePer).toFixed(2)} per shipment would add R${((recommendedPricePerShipment - revenuePer) * shipments).toFixed(2)} to your monthly profit.`
   });
 
+  /* Step 5 — Break-even */
   steps.push({
-    step: 'Risk Assessment',
+    step: 'Break-even Shipments',
+    message: shipments >= breakEvenShipments
+      ? `You are running ${shipments} shipments — ${shipments - breakEvenShipments} above your break-even of ${breakEvenShipments}. You have a healthy operational buffer.`
+      : `You need ${breakEvenShipments} shipments per month to break even but are only running ${shipments}. You need ${breakEvenShipments - shipments} more shipments just to cover costs.`
+  });
+
+  /* Step 6 — Annual Outlook */
+  steps.push({
+    step: 'Annual Profit Outlook',
+    message: annualProfit > 0
+      ? `At current performance your annual profit is R${annualProfit.toFixed(2)}. ${annualProfit > 500000 ? 'Excellent. Consider fleet expansion to scale.' : 'Stable but there is room to grow. Focus on increasing shipment volume or rate.'}`
+      : `At current performance your annual loss is R${Math.abs(annualProfit).toFixed(2)}. Immediate pricing or cost action is required to prevent long term damage.`
+  });
+
+  /* Step 7 — Risk Assessment */
+  steps.push({
+    step: 'Final Risk Assessment',
     message: riskLevel === 'High'
-      ? 'High risk detected. Avoid below-cost shipments.'
+      ? `High risk operations. ${profit < 0 ? `You are losing R${Math.abs(profit).toFixed(2)} per month. Raise rates to minimum R${recommendedPricePerShipment.toFixed(2)} per shipment immediately.` : `Margin of ${margin.toFixed(2)}% is below safe threshold. Any unexpected cost will push you into loss.`}`
       : riskLevel === 'Medium'
-      ? 'Medium risk. Monitor key metrics.'
-      : 'Low risk. Operations stable.'
+      ? `Medium risk. Margin of ${margin.toFixed(2)}% is acceptable but thin. Target R${recommendedPricePerShipment.toFixed(2)} per shipment for a stronger position.`
+      : `Low risk. Operations are financially sound with ${margin.toFixed(2)}% margin. Continue monitoring fuel and maintenance costs.`
   });
 
   res.json({
@@ -1075,82 +992,127 @@ router.post('/logistics/business', auth, requireActiveAccess, (req, res) => {
 
 /* =====================================================
    LOGISTICS — SHIPMENT ENGINE
+   POST /logistics/shipment
 ===================================================== */
 router.post('/logistics/shipment', auth, requireActiveAccess, (req, res) => {
-  const quote = Math.max(0, toNum(req.body.quote));
-  const minMargin = clamp(toNum(req.body.minMargin), 0, 99.99);
-  const buffer = clamp(toNum(req.body.buffer), 0, 99.99);
 
-  const distance = Math.max(0, toNum(req.body.distance));
-  const fuelPerKm = Math.max(0, toNum(req.body.fuelPerKm));
+  const quote        = Math.max(0, toNum(req.body.quote));
+  const minMargin    = clamp(toNum(req.body.minMargin), 0, 99.99);
+  const buffer       = clamp(toNum(req.body.buffer), 0, 99.99);
+  const distance     = Math.max(0, toNum(req.body.distance));
+  const fuelPerKm    = Math.max(0, toNum(req.body.fuelPerKm));
   const vehiclePerKm = Math.max(0, toNum(req.body.vehiclePerKm));
-  const loadFactor = clamp(toNum(req.body.loadFactor) || 100, 1, 200);
-
+  const loadFactor   = clamp(toNum(req.body.loadFactor) || 100, 1, 200);
   const drivingHours = Math.max(0, toNum(req.body.drivingHours));
-  const waitHours = Math.max(0, toNum(req.body.waitHours));
-  const driverRate = Math.max(0, toNum(req.body.driverRate));
-
-  const tolls = Math.max(0, toNum(req.body.tolls));
-  const permits = Math.max(0, toNum(req.body.permits));
-  const otherFees = Math.max(0, toNum(req.body.otherFees));
-
-  const cargoValue = Math.max(0, toNum(req.body.cargoValue));
+  const waitHours    = Math.max(0, toNum(req.body.waitHours));
+  const driverRate   = Math.max(0, toNum(req.body.driverRate));
+  const tolls        = Math.max(0, toNum(req.body.tolls));
+  const permits      = Math.max(0, toNum(req.body.permits));
+  const otherFees    = Math.max(0, toNum(req.body.otherFees));
+  const cargoValue   = Math.max(0, toNum(req.body.cargoValue));
   const insuranceRate = clamp(toNum(req.body.insuranceRate), 0, 100);
+  const duties       = Math.max(0, toNum(req.body.duties));
+  const handling     = Math.max(0, toNum(req.body.handling));
+  const passThrough  = Math.max(0, toNum(req.body.passThrough));
 
-  const duties = Math.max(0, toNum(req.body.duties));
-  const handling = Math.max(0, toNum(req.body.handling));
-  const passThrough = Math.max(0, toNum(req.body.passThrough));
-
-  // ----- Costs -----
-  const fuelCost = distance * fuelPerKm;
-  const vehicleCost = distance * vehiclePerKm;
-  const timeCost = (drivingHours + waitHours) * driverRate;
+  const fuelCost      = distance * fuelPerKm;
+  const vehicleCost   = distance * vehiclePerKm;
+  const timeCost      = (drivingHours + waitHours) * driverRate;
   const insuranceCost = (insuranceRate / 100) * cargoValue;
 
-  const baseCost = fuelCost + vehicleCost + timeCost + tolls + permits + otherFees + insuranceCost + duties + handling + passThrough;
+  const baseCost  = fuelCost + vehicleCost + timeCost + tolls + permits + otherFees + insuranceCost + duties + handling + passThrough;
   const totalCost = baseCost * (100 / loadFactor);
-  const profit = quote - totalCost;
-  const margin = quote > 0 ? (profit / quote) * 100 : 0;
-  const requiredMargin = clamp(minMargin + buffer, 0, 99.99);
-  let recommendedMinQuote = requiredMargin > 0 && requiredMargin < 100 ? totalCost / (1 - requiredMargin / 100) : totalCost;
+  const profit    = quote - totalCost;
+  const margin    = quote > 0 ? (profit / quote) * 100 : 0;
 
-  // Decision
+  const requiredMargin      = clamp(minMargin + buffer, 0, 99.99);
+  const recommendedMinQuote = requiredMargin > 0 && requiredMargin < 100
+    ? totalCost / (1 - requiredMargin / 100)
+    : totalCost;
+
   let decision = 'REVIEW';
-  let reason = 'Review shipment before approval.';
+  let reason   = 'Review shipment before approval.';
   if (quote === 0) {
     decision = 'REVIEW';
-    reason = 'Enter client quote to evaluate.';
+    reason   = 'Enter client quote to evaluate.';
   } else if (margin >= requiredMargin) {
     decision = 'APPROVE';
-    reason = 'Shipment meets required margin and buffer.';
+    reason   = 'Shipment meets required margin and buffer.';
   } else if (margin < minMargin) {
     decision = 'REJECT';
-    reason = 'Shipment below minimum margin requirement.';
+    reason   = 'Shipment below minimum margin requirement.';
   }
 
   let shipmentRisk = 'Low';
   if (profit < 0) shipmentRisk = 'High';
   else if (margin < requiredMargin) shipmentRisk = 'Medium';
 
-  // Step-by-step guidance
-  let steps = [];
+  /* =====================================================
+     STEP-BY-STEP GUIDANCE
+  ===================================================== */
+  const steps = [];
+
+  /* Step 1 — Cost Evaluation */
   steps.push({
     step: 'Evaluate Costs',
-    message: `Total cost for this shipment: R${totalCost.toFixed(2)}. Compare against quote.`
+    message: `Total cost for this shipment is R${totalCost.toFixed(2)}. Your quote is R${quote.toFixed(2)}. ${profit >= 0 ? `You make R${profit.toFixed(2)} profit on this shipment.` : `You lose R${Math.abs(profit).toFixed(2)} on this shipment. Do not accept it at this price.`}`
   });
+
+  /* Step 2 — Margin Check */
   steps.push({
     step: 'Margin Check',
     message: margin >= requiredMargin
-      ? `Margin is healthy (${margin.toFixed(2)}%).`
-      : `Margin is below target (${margin.toFixed(2)}%). Consider increasing quote or reducing costs.`
+      ? `Margin of ${margin.toFixed(2)}% meets your required ${requiredMargin}% target. Shipment is financially safe to accept.`
+      : margin > 0
+      ? `Margin of ${margin.toFixed(2)}% is below your required ${requiredMargin}%. You need to increase your quote by R${(recommendedMinQuote - quote).toFixed(2)} to meet your target margin. Recommended minimum quote is R${recommendedMinQuote.toFixed(2)}.`
+      : `Negative margin of ${margin.toFixed(2)}%. This shipment loses money. Do not accept unless quote is raised to at least R${recommendedMinQuote.toFixed(2)}.`
   });
+
+  /* Step 3 — Largest Cost Driver */
   steps.push({
     step: 'Largest Cost Driver',
-    message: `Review top contributors: Fuel (R${fuelCost}), Vehicle (R${vehicleCost}), Time (R${timeCost}).`
+    message: (() => {
+      const costs = [
+        { name: 'Fuel', value: fuelCost },
+        { name: 'Vehicle Wear', value: vehicleCost },
+        { name: 'Driver Time', value: timeCost },
+        { name: 'Insurance', value: insuranceCost },
+        { name: 'Tolls', value: tolls },
+        { name: 'Handling', value: handling }
+      ].filter(c => c.value > 0);
+      if (costs.length === 0) return 'Enter cost details to identify your largest cost driver.';
+      const top = costs.reduce((a, b) => a.value > b.value ? a : b);
+      const pct = totalCost > 0 ? ((top.value / totalCost) * 100).toFixed(1) : 0;
+      return `Your largest cost is ${top.name} at R${top.value.toFixed(2)} — ${pct}% of total shipment cost. A 10% reduction here would save R${(top.value * 0.1).toFixed(2)} and add ${((top.value * 0.1 / quote) * 100).toFixed(2)}% to your margin.`;
+    })()
   });
+
+  /* Step 4 — Recommended Quote */
   steps.push({
     step: 'Recommended Minimum Quote',
-    message: `To achieve target margin of ${requiredMargin}%, quote should be at least R${recommendedMinQuote.toFixed(2)}.`
+    message: quote >= recommendedMinQuote
+      ? `Your quote of R${quote.toFixed(2)} is above the minimum required R${recommendedMinQuote.toFixed(2)}. Good pricing decision.`
+      : `To achieve your target margin of ${requiredMargin}% your minimum quote should be R${recommendedMinQuote.toFixed(2)}. You are currently underquoting by R${(recommendedMinQuote - quote).toFixed(2)}. Use this number when negotiating with the client.`
+  });
+
+  /* Step 5 — Load Factor Impact */
+  steps.push({
+    step: 'Load Factor Impact',
+    message: loadFactor >= 85
+      ? `Load factor of ${loadFactor}% is good. Truck is well utilised and cost per unit is efficient.`
+      : loadFactor >= 60
+      ? `Load factor of ${loadFactor}% is moderate. Increasing load to 85% would reduce your cost per unit and improve margin by approximately ${((baseCost * (100/loadFactor) - baseCost * (100/85)) / quote * 100).toFixed(2)}%.`
+      : `Load factor of ${loadFactor}% is low. You are running a mostly empty truck which increases your effective cost. Try to consolidate loads or add cargo to improve profitability.`
+  });
+
+  /* Step 6 — Risk Assessment */
+  steps.push({
+    step: 'Final Risk Assessment',
+    message: shipmentRisk === 'High'
+      ? `High risk shipment. ${profit < 0 ? `Do not accept. Loss of R${Math.abs(profit).toFixed(2)} at current quote. Minimum viable quote is R${recommendedMinQuote.toFixed(2)}.` : `Margin is dangerously low. Any delay, fuel spike or additional cost will result in a loss.`}`
+      : shipmentRisk === 'Medium'
+      ? `Medium risk. Shipment is profitable but below your target margin. Consider negotiating the quote up to R${recommendedMinQuote.toFixed(2)} before accepting.`
+      : `Low risk. Shipment is financially sound. Approve and proceed.`
   });
 
   res.json({
@@ -1168,74 +1130,123 @@ router.post('/logistics/shipment', auth, requireActiveAccess, (req, res) => {
 
 /* =====================================================
    LOGISTICS — FREIGHT IMPORT / EXPORT ENGINE
+   POST /logistics/freight
 ===================================================== */
 router.post('/logistics/freight', auth, requireActiveAccess, (req, res) => {
 
-  const quote = Math.max(0, toNum(req.body.quote));
-  const cargoValue = Math.max(0, toNum(req.body.cargoValue));
-  const insuranceRate = clamp(toNum(req.body.insuranceRate), 0, 100);
-
-  const freightCost = Math.max(0, toNum(req.body.freightCost));
-  const fuelSurcharge = Math.max(0, toNum(req.body.fuelSurcharge));
-  const dutyRate = clamp(toNum(req.body.dutyRate), 0, 100);
-  const customsFees = Math.max(0, toNum(req.body.customsFees));
-  const portFees = Math.max(0, toNum(req.body.portFees));
-  const handlingFees = Math.max(0, toNum(req.body.handlingFees));
+  const quote          = Math.max(0, toNum(req.body.quote));
+  const cargoValue     = Math.max(0, toNum(req.body.cargoValue));
+  const insuranceRate  = clamp(toNum(req.body.insuranceRate), 0, 100);
+  const freightCost    = Math.max(0, toNum(req.body.freightCost));
+  const fuelSurcharge  = Math.max(0, toNum(req.body.fuelSurcharge));
+  const dutyRate       = clamp(toNum(req.body.dutyRate), 0, 100);
+  const customsFees    = Math.max(0, toNum(req.body.customsFees));
+  const portFees       = Math.max(0, toNum(req.body.portFees));
+  const handlingFees   = Math.max(0, toNum(req.body.handlingFees));
   const inlandTransport = Math.max(0, toNum(req.body.inlandTransport));
-  const tollCosts = Math.max(0, toNum(req.body.tollCosts));
-  const otherCosts = Math.max(0, toNum(req.body.otherCosts));
+  const tollCosts      = Math.max(0, toNum(req.body.tollCosts));
+  const otherCosts     = Math.max(0, toNum(req.body.otherCosts));
 
   const insuranceCost = (insuranceRate / 100) * cargoValue;
-  const duties = (dutyRate / 100) * cargoValue;
+  const duties        = (dutyRate / 100) * cargoValue;
 
   const totalCost = freightCost + fuelSurcharge + insuranceCost + duties + customsFees + portFees + handlingFees + inlandTransport + tollCosts + otherCosts;
-  const profit = quote - totalCost;
-  const margin = quote > 0 ? (profit / quote) * 100 : 0;
+  const profit    = quote - totalCost;
+  const margin    = quote > 0 ? (profit / quote) * 100 : 0;
   const breakEvenQuote = totalCost;
 
-  // Decision engine
+  const targetMargin = 20;
+  const recommendedQuote = totalCost > 0 ? totalCost / (1 - targetMargin / 100) : 0;
+
   let decision = 'REVIEW';
-  let reason = 'Shipment needs evaluation.';
+  let reason   = 'Shipment needs evaluation.';
   if (profit < 0) {
     decision = 'REJECT';
-    reason = 'Shipment results in a loss.';
+    reason   = 'Shipment results in a loss.';
   } else if (margin < 10) {
     decision = 'REVIEW';
-    reason = 'Margin is very thin for freight risk.';
+    reason   = 'Margin is very thin for freight risk.';
   } else if (margin >= 20) {
     decision = 'APPROVE';
-    reason = 'Healthy freight margin.';
+    reason   = 'Healthy freight margin.';
   }
 
   let riskLevel = 'Low';
   if (profit < 0) riskLevel = 'High';
   else if (margin < 15) riskLevel = 'Medium';
 
-  // Steps
-  let steps = [];
+  /* =====================================================
+     STEP-BY-STEP GUIDANCE
+  ===================================================== */
+  const steps = [];
+
+  /* Step 1 — Cost vs Quote */
   steps.push({
-    step: 'Evaluate Costs',
-    message: `Total freight costs: R${totalCost.toFixed(2)}. Compare against client quote.`
+    step: 'Total Costs vs Client Quote',
+    message: profit >= 0
+      ? `Total freight costs are R${totalCost.toFixed(2)} against your quote of R${quote.toFixed(2)}. You make R${profit.toFixed(2)} profit on this shipment.`
+      : `Total freight costs of R${totalCost.toFixed(2)} exceed your quote of R${quote.toFixed(2)}. You lose R${Math.abs(profit).toFixed(2)} on this shipment. Do not accept unless you requote at minimum R${breakEvenQuote.toFixed(2)}.`
   });
+
+  /* Step 2 — Margin Check */
   steps.push({
     step: 'Profit Margin Check',
     message: margin >= 20
-      ? `Margin is strong at ${margin.toFixed(2)}%.`
+      ? `Strong margin of ${margin.toFixed(2)}%. Freight shipment is financially healthy. International freight standard is 15-25%.`
       : margin >= 10
-      ? `Margin is moderate at ${margin.toFixed(2)}%.`
-      : `Margin is low at ${margin.toFixed(2)}%. Consider revising quote or reducing expenses.`
+      ? `Moderate margin of ${margin.toFixed(2)}%. To reach 20% target your quote should be R${recommendedQuote.toFixed(2)}. You are underquoting by R${(recommendedQuote - quote).toFixed(2)}.`
+      : margin > 0
+      ? `Dangerous margin of ${margin.toFixed(2)}%. Freight has high hidden risk — port delays, currency fluctuations and duty changes can easily eliminate this. Requote at R${recommendedQuote.toFixed(2)} minimum.`
+      : `Negative margin. Loss of R${Math.abs(profit).toFixed(2)}. Requote at minimum R${breakEvenQuote.toFixed(2)} to break even or R${recommendedQuote.toFixed(2)} for 20% margin.`
   });
+
+  /* Step 3 — Largest Cost Driver */
   steps.push({
-    step: 'Break-even Check',
-    message: `Break-even quote: R${breakEvenQuote.toFixed(2)}. Avoid quotes below this value.`
+    step: 'Largest Cost Driver',
+    message: (() => {
+      const costs = [
+        { name: 'Freight Cost', value: freightCost },
+        { name: 'Duties', value: duties },
+        { name: 'Insurance', value: insuranceCost },
+        { name: 'Fuel Surcharge', value: fuelSurcharge },
+        { name: 'Customs Fees', value: customsFees },
+        { name: 'Port Fees', value: portFees },
+        { name: 'Handling Fees', value: handlingFees },
+        { name: 'Inland Transport', value: inlandTransport }
+      ].filter(c => c.value > 0);
+      if (costs.length === 0) return 'Enter cost details to identify your largest cost driver.';
+      const top = costs.reduce((a, b) => a.value > b.value ? a : b);
+      const pct = totalCost > 0 ? ((top.value / totalCost) * 100).toFixed(1) : 0;
+      return `Largest cost is ${top.name} at R${top.value.toFixed(2)} — ${pct}% of total freight costs. ${top.name === 'Duties' ? `Duties are fixed by regulation but check if any duty rebates or exemptions apply to this cargo.` : `A 10% reduction would save R${(top.value * 0.1).toFixed(2)} and add ${((top.value * 0.1 / quote) * 100).toFixed(2)}% to your margin.`}`;
+    })()
   });
+
+  /* Step 4 — Duty Impact */
   steps.push({
-    step: 'Risk Assessment',
+    step: 'Import Duty Assessment',
+    message: duties === 0
+      ? `No import duty entered. If this is an international shipment make sure to verify the correct duty rate — missing duties can turn a profitable shipment into a loss.`
+      : duties > profit
+      ? `Import duty of R${duties.toFixed(2)} is larger than your profit of R${profit.toFixed(2)}. Duty alone is wiping out your margin. Verify the duty rate and check if any exemptions apply. Consider building duty cost into your client quote.`
+      : `Import duty is R${duties.toFixed(2)} — ${totalCost > 0 ? ((duties / totalCost) * 100).toFixed(1) : 0}% of total costs. Factor this into all future international quotes for similar cargo.`
+  });
+
+  /* Step 5 — Break-even */
+  steps.push({
+    step: 'Break-even Quote',
+    message: quote >= breakEvenQuote
+      ? `Your quote of R${quote.toFixed(2)} is above the break-even of R${breakEvenQuote.toFixed(2)}. Never quote below R${breakEvenQuote.toFixed(2)} for a shipment with these costs.`
+      : `Your quote of R${quote.toFixed(2)} is below break-even of R${breakEvenQuote.toFixed(2)}. You need to increase your quote by R${(breakEvenQuote - quote).toFixed(2)} just to cover costs — profit is not yet included. Target quote for 20% margin is R${recommendedQuote.toFixed(2)}.`
+  });
+
+  /* Step 6 — Risk Assessment */
+  steps.push({
+    step: 'Final Risk Assessment',
     message: riskLevel === 'High'
-      ? 'High risk detected. Avoid below-cost shipments.'
+      ? `High risk freight. ${profit < 0 ? `Do not accept at current quote. Minimum break-even quote is R${breakEvenQuote.toFixed(2)}. For 20% margin quote at R${recommendedQuote.toFixed(2)}.` : `Margin is dangerously thin for international freight. Port delays, currency shifts or additional duties can push you into loss instantly.`}`
       : riskLevel === 'Medium'
-      ? 'Medium risk. Monitor key metrics.'
-      : 'Low risk. Operations stable.'
+      ? `Medium risk. Shipment is profitable but thin for international freight. Recommend increasing quote to R${recommendedQuote.toFixed(2)} before accepting.`
+      : `Low risk. Freight margin is healthy. Approve and proceed. Monitor for any duty or port fee changes during transit.`
   });
 
   res.json({
@@ -1245,12 +1256,15 @@ router.post('/logistics/freight', auth, requireActiveAccess, (req, res) => {
     profit,
     margin,
     breakEvenQuote,
+    recommendedQuote,
     decision,
     reason,
     riskLevel,
     steps
   });
 });
+
+
 
 
 /* ================= MANUFACTURING WITH STEPS ================= */
