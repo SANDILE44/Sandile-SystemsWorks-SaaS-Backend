@@ -1264,9 +1264,6 @@ router.post('/logistics/freight', auth, requireActiveAccess, (req, res) => {
   });
 });
 
-
-
-
 /* ================= MANUFACTURING WITH STEPS ================= */
 
 router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => {
