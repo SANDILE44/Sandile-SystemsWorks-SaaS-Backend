@@ -148,6 +148,7 @@ router.post("/google", async (req, res) => {
     if (!user) {
       const trialEnd = new Date();
       trialEnd.setDate(trialEnd.getDate() + 3);
+trialEnd.setHours(23,59,59,999);
 
       user = await User.create({
         name,
