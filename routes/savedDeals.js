@@ -63,5 +63,35 @@ router.delete("/:id", auth, async (req, res) => {
   }
 });
 
+/* ================= UPDATE DEAL ================= */
+router.put("/:id", auth, async (req, res) => {
+  try {
+    const { type, inputs, results } = req.body;
+
+    const updated = await SavedDeal.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        userId: req.user.id
+      },
+      {
+        type,
+        inputs,
+        results
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ message: "Deal not found" });
+    }
+
+    res.json(updated);
+
+  } catch (err) {
+    console.error("Update deal error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 /* ================= IMPORTANT FIX ================= */
 export default router;
