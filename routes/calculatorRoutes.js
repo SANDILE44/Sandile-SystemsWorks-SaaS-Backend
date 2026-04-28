@@ -348,7 +348,7 @@ steps.push({
   });
 });
 
-/* ================= CONSULTING ================= */
+/* ================= CONSULTING PROJECT ================= */
 router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
   let {
     hours,
@@ -363,7 +363,7 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
     contingencyPct,
   } = req.body;
 
-  // ===== SAFE NUMBER CONVERSION =====
+  /* ================= SAFE CONVERSION ================= */
   hours = Number(hours) || 0;
   rate = Number(rate) || 0;
   expenses = Number(expenses) || 0;
@@ -375,159 +375,135 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
   variableCosts = Number(variableCosts) || 0;
   contingencyPct = Number(contingencyPct) || 0;
 
-  // ===== REVENUE =====
+  /* ================= REVENUE ================= */
   const baseRevenue = hours * rate;
   const overtimeRevenue = otHours * otRate;
   const totalRevenue = baseRevenue + overtimeRevenue;
+
   const discountAmount = totalRevenue * (discountPct / 100);
   const revenueAfterDiscount = totalRevenue - discountAmount;
 
-  // ===== COSTS =====
+  /* ================= COSTS ================= */
   const baseCosts = expenses + labor + fixed + variableCosts;
   const contingencyAmount = baseCosts * (contingencyPct / 100);
   const totalCosts = baseCosts + contingencyAmount;
 
-  // ===== PROFIT =====
+  /* ================= PROFIT ================= */
   const profit = revenueAfterDiscount - totalCosts;
+
   const profitPerHour = hours > 0 ? profit / hours : 0;
   const costPerHour = hours > 0 ? totalCosts / hours : 0;
-  const margin = revenueAfterDiscount > 0 ? (profit / revenueAfterDiscount) * 100 : 0;
+
+  const margin =
+    revenueAfterDiscount > 0
+      ? (profit / revenueAfterDiscount) * 100
+      : 0;
+
   const roi = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
+
   const breakevenHours = rate > 0 ? totalCosts / rate : 0;
 
-  // ===== DECISION ENGINE =====
-  let decision = "Break-even";
-  let riskLevel = "Medium";
-  let advice = "Monitor project closely for costs and revenue.";
+  /* ================= DECISION ENGINE ================= */
+  let decision = 'Break-even';
+  let riskLevel = 'Medium';
+  let advice = 'Monitor costs and hours closely before committing.';
 
-  // ===== STEP-BY-STEP GUIDANCE =====
   const steps = [];
 
-  // Step 1: Revenue vs Costs
-  steps.push({
-    step: "Revenue vs Costs",
-    message: `Your total revenue after discount is R${revenueAfterDiscount.toFixed(2)} and total costs are R${totalCosts.toFixed(2)}.`
-  });
+  // Step 1
+  steps.push(
+    `Revenue after discount is R${revenueAfterDiscount.toFixed(
+      2
+    )}, total costs are R${totalCosts.toFixed(2)}.`
+  );
 
-  // Step 2: Profit Check
+  // LOSS CASE
   if (profit <= 0) {
-    decision = "❌ Do Not Take";
-    riskLevel = "High";
-    advice = "This project will lose money. Adjust before committing.";
-    steps.push({
-      step: "Profit Check",
-      message: `Profit is negative (R${profit.toFixed(2)}). You would lose money if you take this project.`
-    });
+    decision = '❌ Do Not Take';
+    riskLevel = 'High';
+    advice = 'Project is unprofitable. Adjust pricing or costs.';
 
-    if (rate > 0) {
-      const suggestedRate = Math.ceil(totalCosts / hours * 1.1);
-      steps.push({
-        step: "Adjust Hourly Rate",
-        message: `Increase your hourly rate from R${rate} to R${suggestedRate} to cover costs and make a profit.`
-      });
-    }
+    steps.push(
+      `Profit is negative: R${profit.toFixed(2)}. You lose money.`
+    );
 
-    if (fixed > 0) {
-      const suggestedFixed = Math.max(fixed * 0.7, 0);
-      steps.push({
-        step: "Reduce Fixed Costs",
-        message: `Consider lowering fixed costs from R${fixed} to R${suggestedFixed} to reduce risk of loss.`
-      });
-    }
+    const suggestedRate =
+      hours > 0 ? Math.ceil(totalCosts / hours * 1.15) : rate;
 
-    if (discountPct > 0) {
-      const suggestedDiscount = Math.max(discountPct - 10, 0);
-      steps.push({
-        step: "Reduce Discount",
-        message: `Cut your discount from ${discountPct}% to ${suggestedDiscount}% to improve revenue.`
-      });
-    }
+    steps.push(
+      `Suggested hourly rate to break even + profit: R${suggestedRate}`
+    );
 
-  } else if (margin < 10) {
-    decision = "⚠ High Risk";
-    riskLevel = "High";
-    advice = "Profit exists but margin is very tight. Small adjustments recommended.";
-    steps.push({
-      step: "Margin Check",
-      message: `Margin is low at ${margin.toFixed(2)}%. Project is profitable but at high risk.`
-    });
-
-    if (rate > 0) {
-      steps.push({
-        step: "Slightly Increase Rate",
-        message: `A small increase in hourly rate can make the project safer.`
-      });
-    }
-
-    if (variableCosts > 0) {
-      const suggestedVariable = Math.max(variableCosts * 0.8, 0);
-      steps.push({
-        step: "Reduce Variable Costs",
-        message: `Lower variable costs from R${variableCosts} to R${suggestedVariable} to protect margin.`
-      });
-    }
-
-  } else if (margin < 20) {
-    decision = "🟡 Moderate Risk";
-    riskLevel = "Medium";
-    advice = "Profitable but tight. Monitor key numbers.";
-
-    steps.push({
-      step: "Margin Check",
-      message: `Margin is ${margin.toFixed(2)}%. Keep an eye on costs and hours.`
-    });
-
-    steps.push({
-      step: "Track Overtime",
-      message: `Overtime hours are ${otHours}. Keep them low to maintain profitability.`
-    });
-
-    steps.push({
-      step: "Expense Monitoring",
-      message: `Base costs are R${baseCosts}. Track them closely.`
-    });
-
-  } else {
-    decision = "✅ Strong Project";
-    riskLevel = "Low";
-    advice = "Healthy margin. Consider minor optimizations.";
-
-    steps.push({
-      step: "Strong Margin",
-      message: `Margin is ${margin.toFixed(2)}%. Project is healthy and profitable.`
-    });
-
-    steps.push({
-      step: "Optional Optimization",
-      message: `You may negotiate a slightly higher rate or reduce costs to increase profit further.`
-    });
+    const suggestedDiscount = Math.max(discountPct - 10, 0);
+    steps.push(
+      `Reduce discount from ${discountPct}% to ${suggestedDiscount}%`
+    );
   }
 
-  // Step 3: Breakeven
-  steps.push({
-    step: "Breakeven Hours",
-    message: `You need to work at least ${breakevenHours.toFixed(2)} hours to cover total costs.`
-  });
+  // LOW MARGIN
+  else if (margin < 10) {
+    decision = '⚠ High Risk';
+    riskLevel = 'High';
+    advice = 'Low margin project. Very sensitive to overruns.';
 
-  // ===== RESPONSE =====
+    steps.push(`Margin is low: ${margin.toFixed(2)}%`);
+
+    if (variableCosts > 0) {
+      steps.push(
+        `Reduce variable costs (currently R${variableCosts})`
+      );
+    }
+  }
+
+  // MEDIUM
+  else if (margin < 20) {
+    decision = '🟡 Moderate Risk';
+    riskLevel = 'Medium';
+    advice = 'Acceptable but monitor closely.';
+
+    steps.push(`Margin is moderate: ${margin.toFixed(2)}%`);
+    steps.push(`Track overtime: ${otHours} hours`);
+  }
+
+  // GOOD
+  else {
+    decision = '✅ Strong Project';
+    riskLevel = 'Low';
+    advice = 'Healthy margin. Good to proceed.';
+
+    steps.push(`Strong margin: ${margin.toFixed(2)}%`);
+    steps.push(`Opportunity to negotiate higher rate.`);
+  }
+
+  // Break-even
+  steps.push(
+    `Break-even hours: ${breakevenHours.toFixed(2)}`
+  );
+
+  /* ================= RESPONSE ================= */
   res.json({
     baseRevenue,
     overtimeRevenue,
     totalRevenue,
     discountAmount,
     revenueAfterDiscount,
+
     contingencyAmount,
     totalCosts,
+
     profit,
     profitPerHour,
     costPerHour,
+
     margin,
     roi,
     breakevenHours,
+
     decision,
     riskLevel,
     advice,
-    steps, // step-by-step guidance for frontend
+
+    steps,
   });
 });
 
@@ -1264,8 +1240,6 @@ router.post('/logistics/freight', auth, requireActiveAccess, (req, res) => {
   });
 });
 
-/* ================= MANUFACTURING WITH STEPS ================= */
-
 router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => {
 
   let {
@@ -1278,9 +1252,8 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
   } = req.body;
 
   /* ===============================
-     SAFE NUMBER CONVERSION
+     SAFE CONVERSION
   ================================ */
-
   units = Number(units) || 0;
   price = Number(price) || 0;
   material = Number(material) || 0;
@@ -1289,119 +1262,166 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
   operational = Number(operational) || 0;
 
   /* ===============================
-     CORE CALCULATIONS
+     CORE ECONOMICS
   ================================ */
-
   const revenue = units * price;
 
-  const totalCosts = (units * material) + labor + fixed + operational;
+  const variableCostPerUnit = material + labor;
+  const totalVariableCosts = units * variableCostPerUnit;
+
+  const totalCosts = totalVariableCosts + fixed + operational;
 
   const profit = revenue - totalCosts;
 
-  /* ===============================
-     UNIT ECONOMICS
-  ================================ */
+  const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+  const roi = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
 
+  /* ===============================
+     UNIT ECONOMICS (SIMPLIFIED BUT STRONG)
+  ================================ */
   const costPerUnit = units > 0 ? totalCosts / units : 0;
   const profitPerUnit = units > 0 ? profit / units : 0;
-  const revenuePerUnit = units > 0 ? revenue / units : 0;
 
   /* ===============================
-     BREAK-EVEN ANALYSIS
+     BREAK-EVEN (IMPROVED LOGIC)
   ================================ */
+  const contributionMargin = price - variableCostPerUnit;
 
-  const contributionMargin = price - material;
-
-  const breakeven = contributionMargin > 0
-    ? Math.ceil((fixed + operational) / contributionMargin)
-    : 0;
+  const breakeven =
+    contributionMargin > 0
+      ? Math.ceil((fixed + operational) / contributionMargin)
+      : null;
 
   /* ===============================
-     PERFORMANCE METRICS
+     BUSINESS HEALTH SCORE (🔥 NEW)
   ================================ */
+  let healthScore = 50;
 
-  const roi = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
-  const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+  if (margin > 30) healthScore += 30;
+  else if (margin > 15) healthScore += 10;
+  else if (margin < 10) healthScore -= 20;
+
+  if (profit > 0) healthScore += 20;
+  if (profit <= 0) healthScore -= 40;
+
+  healthScore = Math.max(0, Math.min(100, healthScore));
 
   /* ===============================
-     PROJECTIONS
+     DECISION ENGINE (SIMPLIFIED BUT STRONGER)
   ================================ */
 
-  const monthlyRevenue = revenue;
-  const annualRevenue = revenue * 12;
+  let status = "PROFIT";
+  let action = "";
+  let reason = "";
+
+  if (profit <= 0) {
+    status = "LOSS";
+    reason = "Costs exceed revenue";
+    action = "Increase price or reduce cost structure immediately";
+  } 
+  else if (margin < 10) {
+    status = "RISK";
+    reason = "Profit margin too low for stability";
+    action = "Improve pricing or reduce variable costs by 10–20%";
+  } 
+  else {
+    status = "PROFIT";
+    reason = "Healthy profit structure";
+    action = "Safe to scale production gradually";
+  }
 
   /* ===============================
-     STEP-BY-STEP GUIDANCE
+     HEADLINE (MORE IMPACTFUL = HIGHER CONVERSION)
   ================================ */
 
-  let steps = [];
+  const headline =
+    status === "LOSS"
+      ? `⚠ You are losing R${Math.abs(profit).toLocaleString()} per cycle`
+      : status === "RISK"
+      ? `⚠ Low stability: margin only ${margin.toFixed(1)}%`
+      : `✔ Profit: R${profit.toLocaleString()} per cycle`;
 
-  steps.push({
-    step: 'Revenue vs Costs',
-    message: totalCosts <= revenue
-      ? 'Revenue covers costs. You are in a sustainable zone.'
-      : 'Revenue is less than total costs. Review pricing, reduce costs, or adjust production volume.'
-  });
+  /* ===============================
+     NEXT ACTION ENGINE (CONVERSION DRIVER)
+  ================================ */
 
-  steps.push({
-    step: 'Profit Margin Check',
-    message: margin >= 20
-      ? `Strong margin (${margin.toFixed(2)}%). Good buffer for unexpected costs.`
-      : margin >= 10
-      ? `Moderate margin (${margin.toFixed(2)}%). Watch for cost increases.`
-      : `Low margin (${margin.toFixed(2)}%). High risk of loss. Consider re-evaluating pricing or material costs.`
-  });
+  const nextActions =
+    status === "LOSS"
+      ? [
+          "Simulate price increase needed for profitability",
+          "Find break-even pricing point",
+          "Reduce cost structure breakdown"
+        ]
+      : status === "RISK"
+      ? [
+          "Run margin improvement simulation",
+          "Optimize cost vs price balance",
+          "Test scaling scenario safely"
+        ]
+      : [
+          "Simulate scaling 2x production",
+          "Check maximum profit capacity",
+          "Export profitability report"
+        ];
 
-  steps.push({
-    step: 'Largest Cost Driver',
-    message: (() => {
-      const costs = [
-        { name: 'Material', value: units * material },
-        { name: 'Labor', value: labor },
-        { name: 'Fixed', value: fixed },
-        { name: 'Operational', value: operational }
-      ];
-      const maxCost = costs.reduce((a, b) => (a.value > b.value ? a : b));
-      return `Largest cost contributor is ${maxCost.name} (R${maxCost.value}). Consider optimization.`;
-    })()
-  });
+  /* ===============================
+     INSIGHTS (SIMPLIFIED BUT HIGH VALUE)
+  ================================ */
 
-  steps.push({
-    step: 'Break-even Analysis',
-    message: `Minimum units to sell to cover fixed & operational costs: ${breakeven} units. Avoid producing less.`
-  });
-
-  steps.push({
-    step: 'Unit Economics',
-    message: `Profit per unit: R${profitPerUnit.toFixed(2)}. Cost per unit: R${costPerUnit.toFixed(2)}. Ensure unit pricing covers material and operational costs.`
-  });
-
-  steps.push({
-    step: 'Risk Assessment',
-    message: profit <= 0
-      ? 'Project operating at a loss. Adjust pricing or reduce costs.'
-      : margin < 10
-      ? 'Margins are thin. Be cautious with production and cost spikes.'
-      : 'Profit healthy. Continue monitoring costs and production efficiency.'
-  });
+  const steps = [
+    {
+      step: "Business Health",
+      message:
+        status === "PROFIT"
+          ? "Your production model is financially stable."
+          : "Your model requires optimization."
+    },
+    {
+      step: "Key Insight",
+      message:
+        profit <= 0
+          ? "You are losing money per production cycle."
+          : margin < 10
+          ? "Margins are too low to scale safely."
+          : "Your cost structure supports growth."
+    },
+    {
+      step: "Recommended Action",
+      message: action
+    }
+  ];
 
   /* ===============================
      RESPONSE
   ================================ */
 
   res.json({
+    // core
     units,
     revenue,
     totalCosts,
-    costPerUnit,
-    revenuePerUnit,
-    profitPerUnit,
     profit,
-    breakeven,
-    roi,
     margin,
-    monthlyRevenue,
-    annualRevenue,
+    roi,
+
+    // unit economics
+    costPerUnit,
+    profitPerUnit,
+
+    // break-even
+    breakeven,
+
+    // decision layer
+    status,
+    reason,
+    action,
+    headline,
+
+    // conversion layer (🔥 NEW)
+    healthScore,
+    nextActions,
+
+    // insights
     steps
   });
 
@@ -1754,161 +1774,168 @@ router.post('/energy/renewable', auth, requireActiveAccess, (req, res) => {
   });
 });
 
+/* ================= RESTAURANT OPTIMIZED (DROPDOWN READY) ================= */
+router.post('/restaurant/operations', auth, requireActiveAccess, (req, res) => {
 
-/* ================= RESTAURANT WITH STEPS ================= */  
-router.post('/restaurant/operations', auth, requireActiveAccess, (req, res) => {  
-  const tables         = Math.max(0, toNum(req.body.tables));  
-  const coversPerTable = Math.max(0, toNum(req.body.coversPerTable));  
-  const avgCheck       = Math.max(0, toNum(req.body.avgCheck));  
-  const foodPct        = clamp(toNum(req.body.foodPct), 0, 100);  
-  const labor          = Math.max(0, toNum(req.body.labor));  
-  const fixed          = Math.max(0, toNum(req.body.fixed));  
-  const days           = Math.max(0, toNum(req.body.days));  
+  const tables         = Math.max(0, toNum(req.body.tables));
+  const coversPerTable = Math.max(0, toNum(req.body.coversPerTable));
+  const avgCheck       = Math.max(0, toNum(req.body.avgCheck));
+  const foodPct        = clamp(toNum(req.body.foodPct), 0, 100);
+  const labor          = Math.max(0, toNum(req.body.labor));
+  const fixed          = Math.max(0, toNum(req.body.fixed));
+  const days           = Math.max(0, toNum(req.body.days));
 
-  /* ==========================
-     CORE CALCULATIONS
-  ========================== */
-  const dailyCovers    = tables * coversPerTable;  
-  const monthlyCovers  = dailyCovers * days;  
-  const monthlyRevenue = monthlyCovers * avgCheck;  
+  /* ================= CORE ================= */
+  const dailyCovers    = tables * coversPerTable;
+  const monthlyCovers  = dailyCovers * days;
+  const monthlyRevenue = monthlyCovers * avgCheck;
 
-  const foodCost   = monthlyRevenue * (foodPct / 100);  
-  const totalCosts = foodCost + labor + fixed;  
-  const profit     = monthlyRevenue - totalCosts;  
+  const foodCost   = monthlyRevenue * (foodPct / 100);
+  const totalCosts = foodCost + labor + fixed;
+  const profit     = monthlyRevenue - totalCosts;
 
-  const margin     = monthlyRevenue > 0 ? (profit / monthlyRevenue) * 100 : 0;  
-  const costRatio  = monthlyRevenue > 0 ? (totalCosts / monthlyRevenue) * 100 : 0;  
-  const profitPerCover = monthlyCovers > 0 ? profit / monthlyCovers : 0;  
-  const laborRatio = monthlyRevenue > 0 ? (labor / monthlyRevenue) * 100 : 0;  
-  const breakevenCovers = avgCheck > 0 && days > 0 ? Math.ceil(totalCosts / (avgCheck * days)) : 0;  
+  const margin     = monthlyRevenue > 0 ? (profit / monthlyRevenue) * 100 : 0;
+  const costRatio  = monthlyRevenue > 0 ? (totalCosts / monthlyRevenue) * 100 : 0;
+  const profitPerCover = monthlyCovers > 0 ? profit / monthlyCovers : 0;
+  const laborRatio = monthlyRevenue > 0 ? (labor / monthlyRevenue) * 100 : 0;
+  const breakevenCovers = avgCheck > 0 && days > 0
+    ? Math.ceil(totalCosts / (avgCheck * days))
+    : 0;
 
-  const monthlyProfit = profit;  
-  const annualProfit  = profit * 12;  
+  const monthlyProfit = profit;
+  const annualProfit  = profit * 12;
 
-  /* ==========================
-     DECISION / STATUS
-  ========================== */
-  let status   = 'Break-even';  
-  let riskLevel = 'Medium';  
-  let advice   = 'Monitor pricing and costs for better performance.';  
+  /* ================= DECISION ================= */
+  let decision = "Break-even";
+  let riskLevel = "Medium";
+  let advice = "Monitor operations.";
 
-  if (profit <= 0) {  
-    status    = 'Loss';  
-    riskLevel = 'High';  
-    advice    = 'Operating at a loss. Increase pricing or reduce food and labor costs.';  
-  } else if (margin < 10) {  
-    status    = 'Dangerous Margin';  
-    riskLevel = 'High';  
-    advice    = 'Margin is too thin. Any cost increase could eliminate profit.';  
-  } else if (margin < 20) {  
-    status    = 'Moderate Profitability';  
-    riskLevel = 'Medium';  
-    advice    = 'Profitable but margin can improve. Optimize food and labor costs.';  
-  } else {  
-    status    = 'Strong Profitability';  
-    riskLevel = 'Low';  
-    advice    = 'Healthy margins. Scaling operations could significantly increase profit.';  
-  }  
+  if (profit <= 0) {
+    decision = "❌ Losing Money";
+    riskLevel = "High";
+    advice = "Increase prices or reduce food/labor costs immediately.";
+  } else if (margin < 10) {
+    decision = "⚠ Dangerous";
+    riskLevel = "High";
+    advice = "Margins too thin. Small cost increases will kill profit.";
+  } else if (margin < 20) {
+    decision = "🟡 Moderate";
+    riskLevel = "Medium";
+    advice = "Profitable but needs optimization.";
+  } else {
+    decision = "✅ Strong";
+    riskLevel = "Low";
+    advice = "Healthy business. Focus on scaling.";
+  }
 
-  if (foodPct > 35) {  
-    advice = 'Food cost above industry standard of 35%. Reduce waste or renegotiate supplier prices.';  
-  }  
+  /* ================= SMART FLAGS ================= */
+  const flags = {
+    highFoodCost: foodPct > 35,
+    highLabor: laborRatio > 30,
+    lowMargin: margin < 10,
+    loss: profit <= 0
+  };
 
-  if (laborRatio > 30) {  
-    advice = 'Labor cost exceeds 30% of revenue. Review staffing levels or increase covers per shift.';  
-  }  
+  /* ================= GROUPED STEPS ================= */
+  const insights = {
 
-  /* ==========================
-   STEP-BY-STEP GUIDANCE
-========================== */
-const steps = [];
+    summary: [
+      {
+        title: "Revenue vs Costs",
+        message:
+          totalCosts <= monthlyRevenue
+            ? `Revenue covers costs. You're profitable.`
+            : `You're losing R${Math.abs(profit).toFixed(2)} monthly.`
+      }
+    ],
 
-/* Step 1 — Revenue vs Costs */
-steps.push({
-  step: 'Revenue vs Costs',
-  message: totalCosts <= monthlyRevenue
-    ? `Revenue of R${monthlyRevenue.toFixed(2)} covers all costs. Operations are sustainable.`
-    : `Revenue of R${monthlyRevenue.toFixed(2)} is below total costs of R${totalCosts.toFixed(2)}. You are losing R${Math.abs(profit).toFixed(2)} per month. Increase your average check or serve more customers daily.`
-});
+    profitability: [
+      {
+        title: "Margin",
+        message:
+          margin >= 20
+            ? `Strong margin (${margin.toFixed(2)}%).`
+            : margin >= 10
+            ? `Moderate margin (${margin.toFixed(2)}%). Improve pricing or volume.`
+            : `Low margin (${margin.toFixed(2)}%). High risk.`
+      },
+      {
+        title: "Profit per Customer",
+        message:
+          profitPerCover <= 0
+            ? `You lose money per customer.`
+            : profitPerCover < 20
+            ? `Low profit per customer. Upsell needed.`
+            : `Healthy profit per customer.`
+      }
+    ],
 
-/* Step 2 — Profit Margin */
-steps.push({
-  step: 'Profit Margin Check',
-  message: margin >= 20
-    ? `Strong margin of ${margin.toFixed(2)}%. Your restaurant is in a healthy position. Maintain current pricing and cost discipline.`
-    : margin >= 10
-    ? `Moderate margin of ${margin.toFixed(2)}%. You need to improve by ${(20 - margin).toFixed(2)}% to reach a healthy margin. Try increasing your average check by R${((totalCosts / monthlyCovers) * 0.1).toFixed(2)} per customer.`
-    : `Dangerous margin of ${margin.toFixed(2)}%. Immediate action needed. Either increase prices or reduce costs. A 10% price increase would add R${(monthlyRevenue * 0.1).toFixed(2)} to your revenue.`
-});
+    costs: [
+      {
+        title: "Food Cost",
+        message:
+          foodPct <= 28
+            ? `Excellent food cost (${foodPct}%).`
+            : foodPct <= 35
+            ? `Acceptable food cost (${foodPct}%).`
+            : `Too high (${foodPct}%). Reduce to 30% to save money.`
+      },
+      {
+        title: "Labor Cost",
+        message:
+          laborRatio <= 30
+            ? `Labor under control (${laborRatio.toFixed(2)}%).`
+            : `Labor too high (${laborRatio.toFixed(2)}%). Reduce staffing or increase volume.`
+      }
+    ],
 
-/* Step 3 — Food Cost */
-steps.push({
-  step: 'Food Cost Control',
-  message: foodPct <= 28
-    ? `Food cost is excellent at ${foodPct}%. Industry standard is 28-35%. You have strong cost control.`
-    : foodPct <= 35
-    ? `Food cost is acceptable at ${foodPct}%. Monitor portion sizes and supplier prices to keep it below 30%.`
-    : `Food cost is too high at ${foodPct}%. Industry standard is below 35%. Reducing to 30% would save you R${((foodPct - 30) / 100 * monthlyRevenue).toFixed(2)} per month. Renegotiate supplier prices or reduce waste.`
-});
+    operations: [
+      {
+        title: "Break-even",
+        message:
+          dailyCovers >= breakevenCovers
+            ? `Above break-even by ${dailyCovers - breakevenCovers} customers/day.`
+            : `Need ${breakevenCovers - dailyCovers} more customers/day.`
+      }
+    ],
 
-/* Step 4 — Labor Cost */
-steps.push({
-  step: 'Labor Cost Review',
-  message: laborRatio <= 30
-    ? `Labor cost is healthy at ${laborRatio.toFixed(2)}% of revenue. Keep staffing levels aligned with covers served.`
-    : `Labor cost is high at ${laborRatio.toFixed(2)}% of revenue. Industry standard is below 30%. Consider restructuring shifts or increasing covers per shift to spread labor cost. Reducing labor to 30% of revenue would save R${(labor - monthlyRevenue * 0.3).toFixed(2)} per month.`
-});
+    growth: [
+      {
+        title: "Annual Projection",
+        message:
+          annualProfit <= 0
+            ? `Annual loss projected. Fix urgently.`
+            : annualProfit < 100000
+            ? `Small profit. Growth needed.`
+            : `Strong annual profit. Consider expansion.`
+      }
+    ]
 
-/* Step 5 — Break-even */
-steps.push({
-  step: 'Break-even Target',
-  message: dailyCovers >= breakevenCovers
-    ? `You are serving ${dailyCovers} covers daily — ${dailyCovers - breakevenCovers} above your break-even of ${breakevenCovers}. You have a healthy safety buffer.`
-    : `You need ${breakevenCovers} covers per day to break even but are only serving ${dailyCovers}. You need ${breakevenCovers - dailyCovers} more customers per day. Consider promotions, extended hours or marketing to increase foot traffic.`
-});
+  };
 
-/* Step 6 — Profit per Cover */
-steps.push({
-  step: 'Profit Per Customer',
-  message: profitPerCover <= 0
-    ? `You are losing R${Math.abs(profitPerCover).toFixed(2)} on every customer served. Increase your average check or reduce costs urgently.`
-    : profitPerCover < 20
-    ? `Profit per customer is R${profitPerCover.toFixed(2)}. This is low. Upselling drinks, desserts or premium dishes could increase this significantly.`
-    : `Profit per customer is R${profitPerCover.toFixed(2)}. Good. Focus on increasing customer volume to grow total profit.`
-});
+  /* ================= RESPONSE ================= */
+  res.json({
+    dailyCovers,
+    monthlyRevenue,
+    foodCost,
+    totalCosts,
+    profit,
+    margin,
+    costRatio,
+    laborRatio,
+    profitPerCover,
+    breakevenCovers,
+    monthlyProfit,
+    annualProfit,
 
-/* Step 7 — Annual Outlook */
-steps.push({
-  step: 'Annual Outlook',
-  message: annualProfit <= 0
-    ? `At current performance your annual loss would be R${Math.abs(annualProfit).toFixed(2)}. Immediate changes are needed to avoid long term damage.`
-    : annualProfit < 100000
-    ? `Annual profit projection is R${annualProfit.toFixed(2)}. Modest but viable. Focus on growing covers per day or increasing average check to improve this.`
-    : `Annual profit projection is R${annualProfit.toFixed(2)}. Strong performance. Consider scaling — adding tables, extending hours or opening a second location.`
-});
-
-  /* ==========================
-     RESPONSE
-  ========================== */
-  res.json({  
-    dailyCovers,  
-    monthlyCovers,  
-    monthlyRevenue,  
-    foodCost,  
-    totalCosts,  
-    profit,  
-    margin,  
-    costRatio,  
-    laborRatio,  
-    profitPerCover,  
-    breakevenCovers,  
-    monthlyProfit,  
-    annualProfit,  
-    status,  
-    riskLevel,  
+    decision,
+    riskLevel,
     advice,
-    steps
-  });  
+    flags,
+
+    insights   // 👈 NEW STRUCTURE FOR DROPDOWNS
+  });
+
 });
 
 /* ================= RETAIL ================= */
@@ -2014,7 +2041,8 @@ router.post('/software/business', auth, requireActiveAccess, (req, res) => {
   const roi = totalCosts ? (profit / totalCosts) * 100 : 0;
 
   res.json({ units, revenue, totalCosts, profit, margin, roi });
-});
+});
+
 
 /* ================= TELECOM ================= */
 router.post('/telecom/business', auth, requireActiveAccess, (req, res) => {
@@ -2062,4 +2090,4 @@ router.post('/textiles/business', auth, requireActiveAccess, (req, res) => {
   });
 });
 
-export default router;
+export default router;
