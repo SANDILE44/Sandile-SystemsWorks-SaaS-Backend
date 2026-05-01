@@ -1240,6 +1240,7 @@ router.post('/logistics/freight', auth, requireActiveAccess, (req, res) => {
   });
 });
 
+/* ================= MANUFACTURING ================= */
 router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => {
 
   let {
@@ -1277,13 +1278,13 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
   const roi = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
 
   /* ===============================
-     UNIT ECONOMICS (SIMPLIFIED BUT STRONG)
+     UNIT ECONOMICS
   ================================ */
   const costPerUnit = units > 0 ? totalCosts / units : 0;
   const profitPerUnit = units > 0 ? profit / units : 0;
 
   /* ===============================
-     BREAK-EVEN (IMPROVED LOGIC)
+     BREAK-EVEN
   ================================ */
   const contributionMargin = price - variableCostPerUnit;
 
@@ -1293,7 +1294,7 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
       : null;
 
   /* ===============================
-     BUSINESS HEALTH SCORE (🔥 NEW)
+     BUSINESS HEALTH SCORE
   ================================ */
   let healthScore = 50;
 
@@ -1307,7 +1308,7 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
   healthScore = Math.max(0, Math.min(100, healthScore));
 
   /* ===============================
-     DECISION ENGINE (SIMPLIFIED BUT STRONGER)
+     DECISION ENGINE
   ================================ */
 
   let status = "PROFIT";
@@ -1317,77 +1318,102 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
   if (profit <= 0) {
     status = "LOSS";
     reason = "Costs exceed revenue";
-    action = "Increase price or reduce cost structure immediately";
+    action = "Immediate restructuring required";
   } 
   else if (margin < 10) {
     status = "RISK";
-    reason = "Profit margin too low for stability";
-    action = "Improve pricing or reduce variable costs by 10–20%";
+    reason = "Low margin stability";
+    action = "Optimize pricing and reduce variable cost per unit";
   } 
   else {
     status = "PROFIT";
-    reason = "Healthy profit structure";
-    action = "Safe to scale production gradually";
+    reason = "Healthy operating structure";
+    action = "Safe to scale production";
   }
 
   /* ===============================
-     HEADLINE (MORE IMPACTFUL = HIGHER CONVERSION)
+     HEADLINE
   ================================ */
 
   const headline =
     status === "LOSS"
-      ? `⚠ You are losing R${Math.abs(profit).toLocaleString()} per cycle`
+      ? `⚠ You lose R${Math.abs(profit).toLocaleString()} per cycle`
       : status === "RISK"
-      ? `⚠ Low stability: margin only ${margin.toFixed(1)}%`
+      ? `⚠ Margin too low: ${margin.toFixed(1)}%`
       : `✔ Profit: R${profit.toLocaleString()} per cycle`;
 
   /* ===============================
-     NEXT ACTION ENGINE (CONVERSION DRIVER)
+     NEXT ACTIONS (STRONGER)
   ================================ */
 
   const nextActions =
     status === "LOSS"
       ? [
-          "Simulate price increase needed for profitability",
-          "Find break-even pricing point",
-          "Reduce cost structure breakdown"
+          "1. Stop scaling production immediately",
+          "2. Identify highest cost driver (material or labor)",
+          "3. Recalculate break-even price before next cycle",
+          "4. Test new pricing model with +15% price increase",
+          "5. Run cost reduction simulation before next production run"
         ]
       : status === "RISK"
       ? [
-          "Run margin improvement simulation",
-          "Optimize cost vs price balance",
-          "Test scaling scenario safely"
+          "1. Reduce cost per unit by optimizing material usage",
+          "2. Negotiate supplier or bulk discount pricing",
+          "3. Increase selling price by 5–12% (test market response)",
+          "4. Recalculate margin after adjustments",
+          "5. Only scale production if margin exceeds 15%"
         ]
       : [
-          "Simulate scaling 2x production",
-          "Check maximum profit capacity",
-          "Export profitability report"
+          "1. Scale production gradually (20–50% increase)",
+          "2. Reinvest 20–30% of profit into capacity expansion",
+          "3. Monitor margin stability after scaling",
+          "4. Test price elasticity before large expansion",
+          "5. Optimize efficiency to push margin above 35%"
         ];
 
   /* ===============================
-     INSIGHTS (SIMPLIFIED BUT HIGH VALUE)
+     🔥 STRONG STEP GUIDANCE (UPGRADED)
   ================================ */
 
   const steps = [
     {
-      step: "Business Health",
-      message:
-        status === "PROFIT"
-          ? "Your production model is financially stable."
-          : "Your model requires optimization."
-    },
-    {
-      step: "Key Insight",
+      step: "1. Financial Position Check",
       message:
         profit <= 0
-          ? "You are losing money per production cycle."
-          : margin < 10
-          ? "Margins are too low to scale safely."
-          : "Your cost structure supports growth."
+          ? `You are currently losing R${Math.abs(profit).toLocaleString()} per production cycle. This is not sustainable and requires immediate intervention.`
+          : `You are generating R${profit.toLocaleString()} profit per cycle with a ${margin.toFixed(1)}% margin.`
     },
+
     {
-      step: "Recommended Action",
-      message: action
+      step: "2. Cost Structure Diagnosis",
+      message:
+        costPerUnit > price
+          ? "Your cost per unit exceeds selling price — this guarantees losses regardless of volume."
+          : `Your cost per unit is R${costPerUnit.toFixed(2)} vs selling price of R${price.toFixed(2)}. This gives you ${((price - costPerUnit)).toFixed(2)} buffer per unit.`
+    },
+
+    {
+      step: "3. Break-Even Reality Check",
+      message:
+        breakeven
+          ? `You must produce at least ${breakeven} units to break even. Anything below this guarantees a loss.`
+          : "Break-even cannot be calculated because contribution margin is negative. Fix pricing or cost structure first."
+    },
+
+    {
+      step: "4. Scaling Decision Rule",
+      message:
+        status === "LOSS"
+          ? "Do NOT scale. Scaling at this stage increases losses linearly."
+          : status === "RISK"
+          ? "Scaling is risky — improve margin before increasing production."
+          : "Scaling is viable — controlled expansion recommended."
+    },
+
+    {
+      step: "5. Immediate Action Priority",
+      message:
+        nextActions[0]
     }
   ];
 
@@ -1396,7 +1422,6 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
   ================================ */
 
   res.json({
-    // core
     units,
     revenue,
     totalCosts,
@@ -1404,24 +1429,19 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
     margin,
     roi,
 
-    // unit economics
     costPerUnit,
     profitPerUnit,
 
-    // break-even
     breakeven,
 
-    // decision layer
     status,
     reason,
     action,
     headline,
 
-    // conversion layer (🔥 NEW)
     healthScore,
     nextActions,
 
-    // insights
     steps
   });
 
