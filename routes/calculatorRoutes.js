@@ -1262,11 +1262,9 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
   const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
   const roi    = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
 
-  /* ================= UNIT ECONOMICS ================= */
   const costPerUnit   = units > 0 ? totalCosts / units : 0;
   const profitPerUnit = units > 0 ? profit / units : 0;
 
-  /* ================= BREAK EVEN ================= */
   const contributionMargin = price - variableCostPerUnit;
 
   const breakeven =
@@ -1274,97 +1272,125 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
       ? Math.ceil((fixed + operational) / contributionMargin)
       : 0;
 
-  /* ================= DECISION ================= */
-  let decision = "Break-even";
-  let riskLevel = "Medium";
-  let advice = "Monitor production efficiency.";
+  /* ================= DECISION ENGINE (FIXED + RELIABLE) ================= */
+  let status = "PROFIT";
+  let decision = "";
+  let riskLevel = "";
+  let action = "";
 
   if (profit <= 0) {
+    status = "LOSS";
     decision = "❌ Loss Making";
     riskLevel = "High";
-    advice = "Increase price or reduce material/labor costs immediately.";
-  } else if (margin < 10) {
-    decision = "⚠ Low Margin Risk";
+    action = "Increase price or reduce production costs immediately.";
+  } 
+  else if (margin < 10) {
+    status = "RISK";
+    decision = "⚠ Low Margin";
     riskLevel = "High";
-    advice = "Margins too thin for scaling.";
-  } else if (margin < 20) {
-    decision = "🟡 Stable but Weak";
+    action = "Margins too low — optimize costs before scaling.";
+  } 
+  else if (margin < 20) {
+    status = "STABLE";
+    decision = "🟡 Stable";
     riskLevel = "Medium";
-    advice = "Improve efficiency before scaling.";
-  } else {
-    decision = "✅ Healthy Production";
+    action = "Improving efficiency recommended before scaling.";
+  } 
+  else {
+    status = "STRONG";
+    decision = "✅ Strong Profitability";
     riskLevel = "Low";
-    advice = "Safe to scale gradually.";
+    action = "Safe to scale production.";
   }
 
-  /* ================= FLAGS ================= */
-  const flags = {
-    loss: profit <= 0,
-    lowMargin: margin < 10,
-    highCost: costPerUnit > price
-  };
+  /* ================= STEP-BY-STEP (PRIMARY UX LAYER) ================= */
+  const steps = [
 
-  /* ================= DROPDOWN INSIGHTS (MATCH RESTAURANT STYLE) ================= */
+    {
+      step: "Step 1 — Production Overview",
+      message:
+        profit <= 0
+          ? `You are losing R${Math.abs(profit).toLocaleString()} per cycle. Immediate correction needed.`
+          : `You are generating R${profit.toLocaleString()} profit per cycle at ${margin.toFixed(1)}% margin.`
+    },
+
+    {
+      step: "Step 2 — Cost Structure Check",
+      message:
+        costPerUnit > price
+          ? "Cost per unit is higher than selling price — this guarantees losses."
+          : `Healthy unit cost. Buffer per unit: R${(price - costPerUnit).toFixed(2)}`
+    },
+
+    {
+      step: "Step 3 — Break-even Analysis",
+      message:
+        breakeven > 0
+          ? `You must produce at least ${breakeven} units to break even.`
+          : "Break-even not possible due to negative contribution margin."
+    },
+
+    {
+      step: "Step 4 — Scaling Decision",
+      message:
+        status === "LOSS"
+          ? "DO NOT scale. Fix cost structure first."
+          : status === "RISK"
+          ? "Scaling is risky. Improve margins first."
+          : "Scaling is viable with controlled expansion."
+    },
+
+    {
+      step: "Step 5 — Immediate Action",
+      message: action
+    }
+
+  ];
+
+  /* ================= DROPDOWN INSIGHTS (SECONDARY UI) ================= */
   const insights = {
-
-    summary: [
-      {
-        title: "Production Overview",
-        message:
-          profit <= 0
-            ? `You are losing R${Math.abs(profit).toLocaleString()} per cycle.`
-            : `You are making R${profit.toLocaleString()} per cycle with ${margin.toFixed(1)}% margin.`
-      }
-    ],
 
     profitability: [
       {
-        title: "Profit Margin",
+        title: "Margin Health",
         message:
           margin >= 20
-            ? `Strong margin (${margin.toFixed(1)}%).`
+            ? "Strong profitability structure."
             : margin >= 10
-            ? `Moderate margin (${margin.toFixed(1)}%). Needs improvement.`
-            : `Critical margin (${margin.toFixed(1)}%). Not scalable.`
-      },
-      {
-        title: "Profit per Unit",
-        message:
-          profitPerUnit > 0
-            ? `Each unit earns R${profitPerUnit.toFixed(2)} profit.`
-            : `Each unit is losing money. Fix pricing or cost structure.`
+            ? "Moderate profitability — needs optimization."
+            : "Critical margin — not scalable."
       }
     ],
 
     costs: [
       {
-        title: "Cost Efficiency",
+        title: "Unit Cost Efficiency",
         message:
           costPerUnit > price
-            ? `Cost per unit is higher than selling price — guaranteed loss model.`
-            : `Healthy cost structure with R${(price - costPerUnit).toFixed(2)} buffer per unit.`
+            ? "Unprofitable per unit model."
+            : "Cost structure is sustainable."
       }
     ],
 
     operations: [
       {
-        title: "Break-even Point",
+        title: "Break-even Position",
         message:
           breakeven > 0
-            ? `You must produce ${breakeven} units to break even.`
-            : `Break-even cannot be calculated due to negative margin.`
+            ? `${breakeven} units required to break even.`
+            : "No viable break-even point."
       }
     ],
 
     growth: [
       {
-        title: "Scaling Decision",
+        title: "Scaling Outlook",
         message:
-          profit <= 0
-            ? "Do NOT scale — fix losses first."
-            : margin < 15
-            ? "Scaling is risky — improve margins first."
-            : "Scaling is viable — expand gradually."
+          status === "LOSS"
+            ? "Stop scaling immediately."
+            : status === "RISK"
+            ? "Delay scaling until margins improve."
+            : "Scaling opportunity available."
       }
     ]
 
@@ -1383,16 +1409,16 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
     profitPerUnit,
     breakeven,
 
+    status,
     decision,
     riskLevel,
-    advice,
-    flags,
+    action,
 
-    insights
+    steps,        // ⭐ PRIMARY UI (dropdown starts here)
+    insights      // secondary dropdown sections
   });
 
 });
-
 /* ================= MARKETING ================= */
 router.post('/marketing/campaign', auth, requireActiveAccess, (req, res) => {
   const { campaigns, budget, revenue, staff, fixed, variable } = req.body;
