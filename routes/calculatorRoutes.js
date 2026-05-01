@@ -170,8 +170,9 @@ router.post('/transport/vehicle', auth, requireActiveAccess, (req, res) => {
 });
 
 
-/* ================= CONSTRUCTION WITH STEPS ================= */
+/* ================= CONSTRUCTION (DROPDOWN ENGINE STRUCTURE) ================= */
 router.post('/construction/project', auth, requireActiveAccess, (req, res) => {
+
   let {
     value,
     material,
@@ -181,7 +182,7 @@ router.post('/construction/project', auth, requireActiveAccess, (req, res) => {
     months,
   } = req.body;
 
-  // ===== SANITIZE INPUTS =====
+  /* ================= SANITIZE ================= */
   value = Number(value) || 0;
   material = Number(material) || 0;
   laborMonthly = Number(laborMonthly) || 0;
@@ -189,165 +190,122 @@ router.post('/construction/project', auth, requireActiveAccess, (req, res) => {
   fixedMonthly = Number(fixedMonthly) || 0;
   months = Number(months) > 0 ? Number(months) : 0;
 
-  // ===== TOTAL COSTS =====
+  /* ================= CORE ================= */
   const laborTotal = laborMonthly * months;
   const equipmentTotal = equipmentMonthly * months;
   const fixedTotal = fixedMonthly * months;
 
   const totalCosts = material + laborTotal + equipmentTotal + fixedTotal;
 
-  // ===== PROFIT =====
   const profit = value - totalCosts;
   const margin = value ? (profit / value) * 100 : 0;
   const roi = totalCosts ? (profit / totalCosts) * 100 : 0;
-  const costRatio = value ? (totalCosts / value) * 100 : 0;
 
-  const breakEvenRevenue = totalCosts;
+  const breakEven = totalCosts;
 
   const monthlyProfit = months ? profit / months : 0;
   const annualProfit = monthlyProfit * 12;
 
-  // ===== PROFIT PER COST =====
-  const profitPerMaterial = material ? profit / material : 0;
-  const profitPerLabor = laborTotal ? profit / laborTotal : 0;
-  const profitPerEquipment = equipmentTotal ? profit / equipmentTotal : 0;
-
-  // ===== COST OVERRUN SIMULATION =====
-  const overrun5 = totalCosts * 1.05;
-  const overrun10 = totalCosts * 1.1;
-  const overrun20 = totalCosts * 1.2;
-
-  const profitOverrun5 = value - overrun5;
-  const profitOverrun10 = value - overrun10;
-  const profitOverrun20 = value - overrun20;
-
-  // ===== DECISION ENGINE =====
-  let decision = 'Strong Project';
-  let riskLevel = 'Low';
+  /* ================= DECISION FIRST ================= */
+  let decision = "Strong Project";
+  let riskLevel = "Low";
+  let advice = "Project is financially viable.";
 
   if (profit <= 0) {
-    decision = 'Do Not Take';
-    riskLevel = 'High';
+    decision = "❌ Do Not Take";
+    riskLevel = "High";
+    advice = "Project loses money. Renegotiate contract value.";
   } else if (margin < 10) {
-    decision = 'High Risk';
-    riskLevel = 'High';
+    decision = "⚠ High Risk";
+    riskLevel = "High";
+    advice = "Very low margin — dangerous for construction.";
   } else if (margin < 20) {
-    decision = 'Moderate Risk';
-    riskLevel = 'Medium';
+    decision = "🟡 Moderate Risk";
+    riskLevel = "Medium";
+    advice = "Profit exists but buffer is weak.";
   }
 
-  // ===== STEP-BY-STEP GUIDANCE =====
-const steps = [];
+  /* ================= DROPDOWN INSIGHTS ================= */
+  const insights = {
 
-/* Step 1 — Revenue vs Costs */
-steps.push({
-  step: 'Contract vs Total Costs',
-  message: totalCosts <= value
-    ? `Contract value of R${value.toFixed(2)} covers all costs of R${totalCosts.toFixed(2)}. You have R${profit.toFixed(2)} profit. Proceed but monitor expenses.`
-    : `Contract value of R${value.toFixed(2)} is less than total costs of R${totalCosts.toFixed(2)}. You will lose R${Math.abs(profit).toFixed(2)} on this project. Do not sign unless you can renegotiate the contract value to at least R${totalCosts.toFixed(2)}.`
-});
+    summary: [
+      {
+        title: "Project Overview",
+        message: profit <= 0
+          ? `Loss of R${Math.abs(profit).toFixed(2)} expected.`
+          : `Profit of R${profit.toFixed(2)} with ${margin.toFixed(1)}% margin.`
+      }
+    ],
 
-/* Step 2 — Profit Margin */
-steps.push({
-  step: 'Profit Margin Check',
-  message: margin >= 20
-    ? `Strong margin of ${margin.toFixed(2)}%. Your project has a healthy buffer. Industry standard for construction is 15-25%.`
-    : margin >= 10
-    ? `Moderate margin of ${margin.toFixed(2)}%. You need ${(20 - margin).toFixed(2)}% more margin to reach a healthy position. Consider increasing your contract value by R${((value * 0.2) - profit).toFixed(2)} or reducing costs.`
-    : margin > 0
-    ? `Dangerous margin of ${margin.toFixed(2)}%. Any cost overrun will eliminate your profit. You need to either increase the contract value by R${(totalCosts * 0.2 - profit).toFixed(2)} or cut costs significantly.`
-    : `No margin. This project loses money. Minimum contract value needed to break even is R${totalCosts.toFixed(2)}.`
-});
+    profitability: [
+      {
+        title: "Margin Health",
+        message: `${margin.toFixed(1)}% margin indicates project strength level.`
+      },
+      {
+        title: "ROI Check",
+        message: `${roi.toFixed(1)}% ROI on total investment.`
+      }
+    ],
 
-/* Step 3 — Largest Cost Driver */
-steps.push({
-  step: 'Largest Cost Driver',
-  message: (() => {
-    const costs = [
-      { name: 'Materials', value: material },
-      { name: 'Labor', value: laborTotal },
-      { name: 'Equipment', value: equipmentTotal },
-      { name: 'Fixed Costs', value: fixedTotal }
-    ];
-    const sorted = [...costs].sort((a, b) => b.value - a.value);
-    const top = sorted[0];
-    const pct = totalCosts > 0 ? ((top.value / totalCosts) * 100).toFixed(1) : 0;
-    return `${top.name} is your biggest cost at R${top.value.toFixed(2)} — ${pct}% of total costs. Focus cost reduction efforts here first. A 10% reduction in ${top.name} would save R${(top.value * 0.1).toFixed(2)} on this project.`;
-  })()
-});
+    costs: [
+      {
+        title: "Total Costs",
+        message: `Total project cost: R${totalCosts.toFixed(2)}`
+      },
+      {
+        title: "Cost Breakdown",
+        message: `Material: R${material}, Labor: R${laborTotal}, Equipment: R${equipmentTotal}, Fixed: R${fixedTotal}`
+      }
+    ],
 
-/* Step 4 — Cost Overrun Simulation */
-steps.push({
-  step: 'Cost Overrun Simulation',
-  message: (() => {
-    if (profitOverrun5 <= 0 && profit > 0) {
-      return `Warning — a 5% cost overrun eliminates your profit completely. Your project has almost no buffer. Add a contingency clause to your contract or increase your quote by at least R${Math.abs(profitOverrun5).toFixed(2)}.`;
-    } else if (profitOverrun10 <= 0 && profit > 0) {
-      return `A 10% cost overrun would eliminate your profit. Current profit R${profit.toFixed(2)} would become R${profitOverrun10.toFixed(2)}. Build a contingency of at least 10% into your contract value.`;
-    } else if (profitOverrun20 <= 0 && profit > 0) {
-      return `A 20% cost overrun would eliminate your profit. At 5% overrun profit is R${profitOverrun5.toFixed(2)}, at 10% it is R${profitOverrun10.toFixed(2)}, at 20% it is R${profitOverrun20.toFixed(2)}. Monitor costs carefully.`;
-    } else if (profit <= 0) {
-      return `Project is already at a loss. Cost overruns will make it worse. At 5% overrun loss becomes R${Math.abs(profitOverrun5).toFixed(2)}, at 20% loss becomes R${Math.abs(profitOverrun20).toFixed(2)}.`;
-    } else {
-      return `Project has strong buffer. At 5% overrun profit is R${profitOverrun5.toFixed(2)}, at 10% it is R${profitOverrun10.toFixed(2)}, at 20% it is R${profitOverrun20.toFixed(2)}. Project can absorb unexpected costs.`;
-    }
-  })()
-});
+    operations: [
+      {
+        title: "Break-even Point",
+        message: `Break-even at R${breakEven.toFixed(2)} contract value`
+      },
+      {
+        title: "Monthly Profit",
+        message: `R${monthlyProfit.toFixed(2)} per month over ${months} months`
+      }
+    ],
 
-/* Step 5 — Break-even */
-steps.push({
-  step: 'Break-even Revenue',
-  message: value >= breakEvenRevenue
-    ? `Your contract value of R${value.toFixed(2)} exceeds the break-even of R${breakEvenRevenue.toFixed(2)} by R${(value - breakEvenRevenue).toFixed(2)}. Never quote below R${breakEvenRevenue.toFixed(2)} for a project with these costs.`
-    : `Your contract value of R${value.toFixed(2)} is below break-even of R${breakEvenRevenue.toFixed(2)}. You need to increase your quote by R${(breakEvenRevenue - value).toFixed(2)} just to cover costs — profit is not yet included.`
-});
+    growth: [
+      {
+        title: "Scaling Decision",
+        message:
+          profit <= 0
+            ? "Do NOT scale this project"
+            : margin < 15
+            ? "Scaling is risky — improve margin first"
+            : "Safe to scale gradually"
+      }
+    ]
+  };
 
-/* Step 6 — Monthly Profit */
-steps.push({
-  step: 'Monthly Profit Over Project Duration',
-  message: months > 0
-    ? monthlyProfit > 0
-      ? `Over ${months} months this project earns R${monthlyProfit.toFixed(2)} per month. Make sure monthly cash flow covers your operational expenses during the project.`
-      : `Over ${months} months this project loses R${Math.abs(monthlyProfit).toFixed(2)} per month. Your cash flow will be negative throughout the project duration.`
-    : `Enter project duration in months to see monthly profit breakdown.`
-});
-
-/* Step 7 — Risk Assessment */
-steps.push({
-  step: 'Final Risk Assessment',
-  message: riskLevel === 'High'
-    ? `High risk project. ${profit <= 0 ? `Do not sign this contract unless you can increase the value to at least R${(totalCosts * 1.15).toFixed(2)} to achieve a 15% margin.` : `Margin is too thin at ${margin.toFixed(2)}%. Increase contract value by R${(totalCosts * 0.15 - profit).toFixed(2)} to reach minimum safe margin.`}`
-    : riskLevel === 'Medium'
-    ? `Moderate risk. Project is profitable but margin of ${margin.toFixed(2)}% leaves limited room for error. Negotiate a contract value of R${(totalCosts * 1.2).toFixed(2)} or higher for a strong position.`
-    : `Low risk. Project is financially sound with ${margin.toFixed(2)}% margin. Proceed with standard cost monitoring.`
-});
-
+  /* ================= RESPONSE ================= */
   res.json({
     value,
-    material,
-    laborTotal,
-    equipmentTotal,
-    fixedTotal,
     totalCosts,
     profit,
     margin,
     roi,
-    costRatio,
-    breakEvenRevenue,
-    profitPerMaterial,
-    profitPerLabor,
-    profitPerEquipment,
+
+    laborTotal,
+    equipmentTotal,
+    fixedTotal,
+
+    breakEven,
     monthlyProfit,
     annualProfit,
-    profitOverrun5,
-    profitOverrun10,
-    profitOverrun20,
+
     decision,
     riskLevel,
-    steps
+    advice,
+
+    insights
   });
 });
-
 /* ================= CONSULTING PROJECT ================= */
 router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
   let {
