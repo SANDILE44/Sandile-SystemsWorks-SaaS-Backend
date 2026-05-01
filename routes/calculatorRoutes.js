@@ -1243,184 +1243,134 @@ router.post('/logistics/freight', auth, requireActiveAccess, (req, res) => {
 /* ================= MANUFACTURING ================= */
 router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => {
 
-  let {
-    units,
-    price,
-    material,
-    labor,
-    fixed,
-    operational
-  } = req.body;
+  const units       = Math.max(0, Number(req.body.units) || 0);
+  const price       = Math.max(0, Number(req.body.price) || 0);
+  const material    = Math.max(0, Number(req.body.material) || 0);
+  const labor       = Math.max(0, Number(req.body.labor) || 0);
+  const fixed       = Math.max(0, Number(req.body.fixed) || 0);
+  const operational = Math.max(0, Number(req.body.operational) || 0);
 
-  /* ===============================
-     SAFE CONVERSION
-  ================================ */
-  units = Number(units) || 0;
-  price = Number(price) || 0;
-  material = Number(material) || 0;
-  labor = Number(labor) || 0;
-  fixed = Number(fixed) || 0;
-  operational = Number(operational) || 0;
-
-  /* ===============================
-     CORE ECONOMICS
-  ================================ */
+  /* ================= CORE ================= */
   const revenue = units * price;
 
   const variableCostPerUnit = material + labor;
-  const totalVariableCosts = units * variableCostPerUnit;
+  const totalVariableCosts  = units * variableCostPerUnit;
 
   const totalCosts = totalVariableCosts + fixed + operational;
-
-  const profit = revenue - totalCosts;
+  const profit     = revenue - totalCosts;
 
   const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
-  const roi = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
+  const roi    = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
 
-  /* ===============================
-     UNIT ECONOMICS
-  ================================ */
-  const costPerUnit = units > 0 ? totalCosts / units : 0;
+  /* ================= UNIT ECONOMICS ================= */
+  const costPerUnit   = units > 0 ? totalCosts / units : 0;
   const profitPerUnit = units > 0 ? profit / units : 0;
 
-  /* ===============================
-     BREAK-EVEN
-  ================================ */
+  /* ================= BREAK EVEN ================= */
   const contributionMargin = price - variableCostPerUnit;
 
   const breakeven =
     contributionMargin > 0
       ? Math.ceil((fixed + operational) / contributionMargin)
-      : null;
+      : 0;
 
-  /* ===============================
-     BUSINESS HEALTH SCORE
-  ================================ */
-  let healthScore = 50;
-
-  if (margin > 30) healthScore += 30;
-  else if (margin > 15) healthScore += 10;
-  else if (margin < 10) healthScore -= 20;
-
-  if (profit > 0) healthScore += 20;
-  if (profit <= 0) healthScore -= 40;
-
-  healthScore = Math.max(0, Math.min(100, healthScore));
-
-  /* ===============================
-     DECISION ENGINE
-  ================================ */
-
-  let status = "PROFIT";
-  let action = "";
-  let reason = "";
+  /* ================= DECISION ================= */
+  let decision = "Break-even";
+  let riskLevel = "Medium";
+  let advice = "Monitor production efficiency.";
 
   if (profit <= 0) {
-    status = "LOSS";
-    reason = "Costs exceed revenue";
-    action = "Immediate restructuring required";
-  } 
-  else if (margin < 10) {
-    status = "RISK";
-    reason = "Low margin stability";
-    action = "Optimize pricing and reduce variable cost per unit";
-  } 
-  else {
-    status = "PROFIT";
-    reason = "Healthy operating structure";
-    action = "Safe to scale production";
+    decision = "❌ Loss Making";
+    riskLevel = "High";
+    advice = "Increase price or reduce material/labor costs immediately.";
+  } else if (margin < 10) {
+    decision = "⚠ Low Margin Risk";
+    riskLevel = "High";
+    advice = "Margins too thin for scaling.";
+  } else if (margin < 20) {
+    decision = "🟡 Stable but Weak";
+    riskLevel = "Medium";
+    advice = "Improve efficiency before scaling.";
+  } else {
+    decision = "✅ Healthy Production";
+    riskLevel = "Low";
+    advice = "Safe to scale gradually.";
   }
 
-  /* ===============================
-     HEADLINE
-  ================================ */
+  /* ================= FLAGS ================= */
+  const flags = {
+    loss: profit <= 0,
+    lowMargin: margin < 10,
+    highCost: costPerUnit > price
+  };
 
-  const headline =
-    status === "LOSS"
-      ? `⚠ You lose R${Math.abs(profit).toLocaleString()} per cycle`
-      : status === "RISK"
-      ? `⚠ Margin too low: ${margin.toFixed(1)}%`
-      : `✔ Profit: R${profit.toLocaleString()} per cycle`;
+  /* ================= DROPDOWN INSIGHTS (MATCH RESTAURANT STYLE) ================= */
+  const insights = {
 
-  /* ===============================
-     NEXT ACTIONS (STRONGER)
-  ================================ */
+    summary: [
+      {
+        title: "Production Overview",
+        message:
+          profit <= 0
+            ? `You are losing R${Math.abs(profit).toLocaleString()} per cycle.`
+            : `You are making R${profit.toLocaleString()} per cycle with ${margin.toFixed(1)}% margin.`
+      }
+    ],
 
-  const nextActions =
-    status === "LOSS"
-      ? [
-          "1. Stop scaling production immediately",
-          "2. Identify highest cost driver (material or labor)",
-          "3. Recalculate break-even price before next cycle",
-          "4. Test new pricing model with +15% price increase",
-          "5. Run cost reduction simulation before next production run"
-        ]
-      : status === "RISK"
-      ? [
-          "1. Reduce cost per unit by optimizing material usage",
-          "2. Negotiate supplier or bulk discount pricing",
-          "3. Increase selling price by 5–12% (test market response)",
-          "4. Recalculate margin after adjustments",
-          "5. Only scale production if margin exceeds 15%"
-        ]
-      : [
-          "1. Scale production gradually (20–50% increase)",
-          "2. Reinvest 20–30% of profit into capacity expansion",
-          "3. Monitor margin stability after scaling",
-          "4. Test price elasticity before large expansion",
-          "5. Optimize efficiency to push margin above 35%"
-        ];
+    profitability: [
+      {
+        title: "Profit Margin",
+        message:
+          margin >= 20
+            ? `Strong margin (${margin.toFixed(1)}%).`
+            : margin >= 10
+            ? `Moderate margin (${margin.toFixed(1)}%). Needs improvement.`
+            : `Critical margin (${margin.toFixed(1)}%). Not scalable.`
+      },
+      {
+        title: "Profit per Unit",
+        message:
+          profitPerUnit > 0
+            ? `Each unit earns R${profitPerUnit.toFixed(2)} profit.`
+            : `Each unit is losing money. Fix pricing or cost structure.`
+      }
+    ],
 
-  /* ===============================
-     🔥 STRONG STEP GUIDANCE (UPGRADED)
-  ================================ */
+    costs: [
+      {
+        title: "Cost Efficiency",
+        message:
+          costPerUnit > price
+            ? `Cost per unit is higher than selling price — guaranteed loss model.`
+            : `Healthy cost structure with R${(price - costPerUnit).toFixed(2)} buffer per unit.`
+      }
+    ],
 
-  const steps = [
-    {
-      step: "1. Financial Position Check",
-      message:
-        profit <= 0
-          ? `You are currently losing R${Math.abs(profit).toLocaleString()} per production cycle. This is not sustainable and requires immediate intervention.`
-          : `You are generating R${profit.toLocaleString()} profit per cycle with a ${margin.toFixed(1)}% margin.`
-    },
+    operations: [
+      {
+        title: "Break-even Point",
+        message:
+          breakeven > 0
+            ? `You must produce ${breakeven} units to break even.`
+            : `Break-even cannot be calculated due to negative margin.`
+      }
+    ],
 
-    {
-      step: "2. Cost Structure Diagnosis",
-      message:
-        costPerUnit > price
-          ? "Your cost per unit exceeds selling price — this guarantees losses regardless of volume."
-          : `Your cost per unit is R${costPerUnit.toFixed(2)} vs selling price of R${price.toFixed(2)}. This gives you ${((price - costPerUnit)).toFixed(2)} buffer per unit.`
-    },
+    growth: [
+      {
+        title: "Scaling Decision",
+        message:
+          profit <= 0
+            ? "Do NOT scale — fix losses first."
+            : margin < 15
+            ? "Scaling is risky — improve margins first."
+            : "Scaling is viable — expand gradually."
+      }
+    ]
 
-    {
-      step: "3. Break-Even Reality Check",
-      message:
-        breakeven
-          ? `You must produce at least ${breakeven} units to break even. Anything below this guarantees a loss.`
-          : "Break-even cannot be calculated because contribution margin is negative. Fix pricing or cost structure first."
-    },
+  };
 
-    {
-      step: "4. Scaling Decision Rule",
-      message:
-        status === "LOSS"
-          ? "Do NOT scale. Scaling at this stage increases losses linearly."
-          : status === "RISK"
-          ? "Scaling is risky — improve margin before increasing production."
-          : "Scaling is viable — controlled expansion recommended."
-    },
-
-    {
-      step: "5. Immediate Action Priority",
-      message:
-        nextActions[0]
-    }
-  ];
-
-  /* ===============================
-     RESPONSE
-  ================================ */
-
+  /* ================= RESPONSE ================= */
   res.json({
     units,
     revenue,
@@ -1431,18 +1381,14 @@ router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => 
 
     costPerUnit,
     profitPerUnit,
-
     breakeven,
 
-    status,
-    reason,
-    action,
-    headline,
+    decision,
+    riskLevel,
+    advice,
+    flags,
 
-    healthScore,
-    nextActions,
-
-    steps
+    insights
   });
 
 });
