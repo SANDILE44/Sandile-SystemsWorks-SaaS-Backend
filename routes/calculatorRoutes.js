@@ -1198,162 +1198,56 @@ router.post('/logistics/freight', auth, requireActiveAccess, (req, res) => {
   });
 });
 
-/* ================= MANUFACTURING ================= */
-router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => {
+function renderSteps(data) {
 
-  const units       = Math.max(0, Number(req.body.units) || 0);
-  const price       = Math.max(0, Number(req.body.price) || 0);
-  const material    = Math.max(0, Number(req.body.material) || 0);
-  const labor       = Math.max(0, Number(req.body.labor) || 0);
-  const fixed       = Math.max(0, Number(req.body.fixed) || 0);
-  const operational = Math.max(0, Number(req.body.operational) || 0);
+  const container = $("stepsContainer");
 
-  /* ================= CORE ================= */
-  const revenue = units * price;
+  if (!data?.stepGuide) return;
 
-  const variableCostPerUnit = material + labor;
-  const totalVariableCosts  = units * variableCostPerUnit;
+  const { steps, insights } = data.stepGuide;
 
-  const totalCosts = totalVariableCosts + fixed + operational;
-  const profit     = revenue - totalCosts;
+  container.innerHTML = `
+    <details>
+      <summary style="font-weight:700; cursor:pointer;">
+        Step-by-Step Guidance
+      </summary>
 
-  const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
-  const roi    = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
+      <div style="margin-top:10px;">
 
-  const costPerUnit   = units > 0 ? totalCosts / units : 0;
-  const profitPerUnit = units > 0 ? profit / units : 0;
+        ${steps.map(s => `
+          <div class="step">
+            <strong>${s.step}</strong>
+            <div>${s.message}</div>
+          </div>
+        `).join("")}
 
-  const contributionMargin = price - variableCostPerUnit;
+        <div style="margin-top:15px;">
 
-  const breakeven =
-    contributionMargin > 0
-      ? Math.ceil((fixed + operational) / contributionMargin)
-      : 0;
+          ${Object.entries(insights).map(([group, items]) => `
+            <details>
+              <summary style="font-weight:700;">
+                ${group.toUpperCase()}
+              </summary>
 
-  /* ================= DECISION ENGINE (FIXED + RELIABLE) ================= */
-  let status = "PROFIT";
-  let decision = "";
-  let riskLevel = "";
-  let action = "";
+              <div style="margin-top:8px;">
+                ${items.map(i => `
+                  <div class="step">
+                    <strong>${i.title}</strong>
+                    <div>${i.message}</div>
+                  </div>
+                `).join("")}
+              </div>
 
-  if (profit <= 0) {
-    status = "LOSS";
-    decision = "❌ Loss Making";
-    riskLevel = "High";
-    action = "Increase price or reduce production costs immediately.";
-  } 
-  else if (margin < 10) {
-    status = "RISK";
-    decision = "⚠ Low Margin";
-    riskLevel = "High";
-    action = "Margins too low — optimize costs before scaling.";
-  } 
-  else if (margin < 20) {
-    status = "STABLE";
-    decision = "🟡 Stable";
-    riskLevel = "Medium";
-    action = "Improving efficiency recommended before scaling.";
-  } 
-  else {
-    status = "STRONG";
-    decision = "✅ Strong Profitability";
-    riskLevel = "Low";
-    action = "Safe to scale production.";
-  }
+            </details>
+          `).join("")}
 
-  /* ================= STEP-BY-STEP (PRIMARY UX LAYER) ================= */
-  const steps = [
+        </div>
 
-    {
-      step: "Step 1 — Production Overview",
-      message:
-        profit <= 0
-          ? `You are losing R${Math.abs(profit).toLocaleString()} per cycle. Immediate correction needed.`
-          : `You are generating R${profit.toLocaleString()} profit per cycle at ${margin.toFixed(1)}% margin.`
-    },
+      </div>
 
-    {
-      step: "Step 2 — Cost Structure Check",
-      message:
-        costPerUnit > price
-          ? "Cost per unit is higher than selling price — this guarantees losses."
-          : `Healthy unit cost. Buffer per unit: R${(price - costPerUnit).toFixed(2)}`
-    },
-
-    {
-      step: "Step 3 — Break-even Analysis",
-      message:
-        breakeven > 0
-          ? `You must produce at least ${breakeven} units to break even.`
-          : "Break-even not possible due to negative contribution margin."
-    },
-
-    {
-      step: "Step 4 — Scaling Decision",
-      message:
-        status === "LOSS"
-          ? "DO NOT scale. Fix cost structure first."
-          : status === "RISK"
-          ? "Scaling is risky. Improve margins first."
-          : "Scaling is viable with controlled expansion."
-    },
-
-    {
-      step: "Step 5 — Immediate Action",
-      message: action
-    }
-
-  ];
-
-  /* ================= DROPDOWN INSIGHTS (SECONDARY UI) ================= */
-  const insights = {
-
-    profitability: [
-      {
-        title: "Margin Health",
-        message:
-          margin >= 20
-            ? "Strong profitability structure."
-            : margin >= 10
-            ? "Moderate profitability — needs optimization."
-            : "Critical margin — not scalable."
-      }
-    ],
-
-    costs: [
-      {
-        title: "Unit Cost Efficiency",
-        message:
-          costPerUnit > price
-            ? "Unprofitable per unit model."
-            : "Cost structure is sustainable."
-      }
-    ],
-
-    operations: [
-      {
-        title: "Break-even Position",
-        message:
-          breakeven > 0
-            ? `${breakeven} units required to break even.`
-            : "No viable break-even point."
-      }
-    ],
-
-    growth: [
-      {
-        title: "Scaling Outlook",
-        message:
-          status === "LOSS"
-            ? "Stop scaling immediately."
-            : status === "RISK"
-            ? "Delay scaling until margins improve."
-            : "Scaling opportunity available."
-      }
-    ]
-
-  };
-
+    </details>
+  `;
+}
   /* ================= RESPONSE ================= */
   res.json({
     units,
