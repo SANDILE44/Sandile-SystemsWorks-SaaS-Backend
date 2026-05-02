@@ -1220,79 +1220,191 @@ router.post('/logistics/freight', auth, requireActiveAccess, (req, res) => {
   });
 });
 
-function renderSteps(data) {
+/* ================= MANUFACTURING ================= */
+router.post('/manufacturing/business', auth, requireActiveAccess, (req, res) => {
 
-  const container = $("stepsContainer");
+  const units       = Math.max(0, Number(req.body.units) || 0);
+  const price       = Math.max(0, Number(req.body.price) || 0);
+  const material    = Math.max(0, Number(req.body.material) || 0);
+  const labor       = Math.max(0, Number(req.body.labor) || 0);
+  const fixed       = Math.max(0, Number(req.body.fixed) || 0);
+  const operational = Math.max(0, Number(req.body.operational) || 0);
 
-  if (!data?.stepGuide) return;
+  /* ================= CORE ================= */
 
-  const { steps, insights } = data.stepGuide;
+  const revenue = units * price;
 
-  container.innerHTML = `
-    <details>
-      <summary style="font-weight:700; cursor:pointer;">
-        Step-by-Step Guidance
-      </summary>
+  // ⚠️ FIX: labor is monthly → convert to per unit safely
+  const laborPerUnit = units > 0 ? labor / units : 0;
 
-      <div style="margin-top:10px;">
+  const variableCostPerUnit = material + laborPerUnit;
+  const totalVariableCosts  = units * variableCostPerUnit;
 
-        ${steps.map(s => `
-          <div class="step">
-            <strong>${s.step}</strong>
-            <div>${s.message}</div>
-          </div>
-        `).join("")}
+  const totalCosts = totalVariableCosts + fixed + operational;
+  const profit     = revenue - totalCosts;
 
-        <div style="margin-top:15px;">
+  // ✅ SAFE PERCENTAGES (no crazy numbers)
+  const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+  const roi    = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
 
-          ${Object.entries(insights).map(([group, items]) => `
-            <details>
-              <summary style="font-weight:700;">
-                ${group.toUpperCase()}
-              </summary>
+  const costPerUnit   = units > 0 ? totalCosts / units : 0;
+  const profitPerUnit = units > 0 ? profit / units : 0;
 
-              <div style="margin-top:8px;">
-                ${items.map(i => `
-                  <div class="step">
-                    <strong>${i.title}</strong>
-                    <div>${i.message}</div>
-                  </div>
-                `).join("")}
-              </div>
+  const contributionMargin = price - variableCostPerUnit;
 
-            </details>
-          `).join("")}
+  const breakeven =
+    contributionMargin > 0
+      ? Math.ceil((fixed + operational) / contributionMargin)
+      : 0;
 
-        </div>
+  /* ================= DECISION ================= */
 
-      </div>
+  let status = "PROFIT";
+  let decision = "";
+  let riskLevel = "";
+  let action = "";
 
-    </details>
-  `;
-}
+  if (profit <= 0) {
+    status = "LOSS";
+    decision = "❌ Loss Making";
+    riskLevel = "High";
+    action = "Increase price or reduce production costs immediately.";
+  } 
+  else if (margin < 10) {
+    status = "RISK";
+    decision = "⚠ Low Margin";
+    riskLevel = "High";
+    action = "Margins too low — optimize costs before scaling.";
+  } 
+  else if (margin < 20) {
+    status = "STABLE";
+    decision = "🟡 Stable";
+    riskLevel = "Medium";
+    action = "Improve efficiency before scaling.";
+  } 
+  else {
+    status = "STRONG";
+    decision = "✅ Strong Profitability";
+    riskLevel = "Low";
+    action = "Safe to scale production.";
+  }
+
+  /* ================= STEP ENGINE (PRIMARY UI) ================= */
+
+  const stepGuide = {
+    steps: [
+
+      {
+        step: "Step 1 — Production Overview",
+        message:
+          profit <= 0
+            ? `You are losing R${Math.abs(profit).toLocaleString()} per cycle.`
+            : `You are generating R${profit.toLocaleString()} profit at ${margin.toFixed(1)}% margin.`
+      },
+
+      {
+        step: "Step 2 — Cost Structure",
+        message:
+          costPerUnit > price
+            ? "Cost per unit exceeds selling price — guaranteed loss."
+            : `Healthy cost buffer: R${(price - costPerUnit).toFixed(2)} per unit.`
+      },
+
+      {
+        step: "Step 3 — Break-even",
+        message:
+          breakeven > 0
+            ? `Break-even at ${breakeven} units.`
+            : "Break-even not achievable."
+      },
+
+      {
+        step: "Step 4 — Scaling",
+        message:
+          status === "LOSS"
+            ? "Do NOT scale."
+            : status === "RISK"
+            ? "Scaling is risky."
+            : "Scaling is viable."
+      },
+
+      {
+        step: "Step 5 — Action",
+        message: action
+      }
+
+    ],
+
+    insights: {
+
+      profitability: [
+        {
+          title: "Margin Health",
+          message:
+            margin >= 20
+              ? "Strong profitability."
+              : margin >= 10
+              ? "Moderate margin."
+              : "Critical margin."
+        }
+      ],
+
+      costs: [
+        {
+          title: "Cost Efficiency",
+          message:
+            costPerUnit > price
+              ? "Unprofitable unit economics."
+              : "Cost structure is stable."
+        }
+      ],
+
+      operations: [
+        {
+          title: "Break-even Position",
+          message:
+            breakeven > 0
+              ? `${breakeven} units required.`
+              : "No viable break-even."
+        }
+      ],
+
+      growth: [
+        {
+          title: "Scaling Outlook",
+          message:
+            status === "LOSS"
+              ? "Stop scaling."
+              : status === "RISK"
+              ? "Delay scaling."
+              : "Scaling opportunity available."
+        }
+      ]
+
+    }
+  };
+
   /* ================= RESPONSE ================= */
+
   res.json({
-    units,
     revenue,
     totalCosts,
     profit,
     margin,
     roi,
-
     costPerUnit,
     profitPerUnit,
     breakeven,
-
     status,
     decision,
     riskLevel,
     action,
 
-    steps,        // ⭐ PRIMARY UI (dropdown starts here)
-    insights      // secondary dropdown sections
+    stepGuide   // ✅ ONE OBJECT → PERFECT FOR UI
   });
 
 });
+
 /* ================= MARKETING ================= */
 router.post('/marketing/campaign', auth, requireActiveAccess, (req, res) => {
   const { campaigns, budget, revenue, staff, fixed, variable } = req.body;
