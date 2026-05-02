@@ -169,7 +169,6 @@ router.post('/transport/vehicle', auth, requireActiveAccess, (req, res) => {
   });
 });
 
-/* ================= CONSTRUCTION OPTIMIZED (DROPDOWN READY) ================= */
 router.post('/construction/project', auth, requireActiveAccess, (req, res) => {
 
   const value            = Math.max(0, Number(req.body.value) || 0);
@@ -205,105 +204,98 @@ router.post('/construction/project', auth, requireActiveAccess, (req, res) => {
   if (profit <= 0) {
     decision = "❌ Do Not Take";
     riskLevel = "High";
-    advice = "Project loses money — renegotiate contract value.";
+    advice = "Loss project — renegotiate contract.";
   } else if (margin < 10) {
     decision = "⚠ High Risk";
     riskLevel = "High";
-    advice = "Margins too low for construction risk.";
+    advice = "Very low margin — risky.";
   } else if (margin < 20) {
     decision = "🟡 Moderate Risk";
     riskLevel = "Medium";
     advice = "Acceptable but weak buffer.";
   }
 
-  /* ================= SMART FLAGS ================= */
-  const flags = {
-    lowMargin: margin < 10,
-    highCostRatio: costRatio > 80,
-    loss: profit <= 0,
-    weakROI: roi < 10
-  };
+  /* ================= 🔥 PRIMARY UX LAYER (MISSING BEFORE) ================= */
+  const steps = [
 
-  /* ================= DROPDOWN INSIGHTS (STRUCTURED LIKE RESTAURANT) ================= */
+    {
+      step: "Cost vs Value",
+      message:
+        profit >= 0
+          ? `Profit of R${profit.toFixed(2)} on project value R${value.toFixed(2)}.`
+          : `Loss of R${Math.abs(profit).toFixed(2)}. Break-even is R${breakEvenValue.toFixed(2)}.`
+    },
+
+    {
+      step: "Cost Breakdown",
+      message:
+        `Material R${material}, Labor R${laborTotal.toFixed(2)}, Equipment R${equipmentTotal.toFixed(2)}, Fixed R${fixedTotal.toFixed(2)}`
+    },
+
+    {
+      step: "Margin Check",
+      message: `${margin.toFixed(1)}% margin — ${margin < 10 ? "Critical" : margin < 20 ? "Weak" : "Strong"}`
+    },
+
+    {
+      step: "ROI Check",
+      message: `${roi.toFixed(1)}% ROI on total investment`
+    },
+
+    {
+      step: "Scaling Decision",
+      message:
+        profit <= 0
+          ? "DO NOT scale"
+          : margin < 15
+          ? "Scale cautiously"
+          : "Safe to scale"
+    },
+
+    {
+      step: "Final Action",
+      message: advice
+    }
+
+  ];
+
+  /* ================= DROPDOWN INSIGHTS ================= */
   const insights = {
-
-    summary: [
-      {
-        title: "Project Overview",
-        message:
-          profit <= 0
-            ? `Loss of R${Math.abs(profit).toFixed(2)} expected over project duration.`
-            : `Profit of R${profit.toFixed(2)} expected with ${margin.toFixed(1)}% margin.`
-      }
-    ],
 
     profitability: [
       {
         title: "Margin Health",
-        message:
-          margin >= 20
-            ? `Strong margin (${margin.toFixed(1)}%).`
-            : margin >= 10
-            ? `Moderate margin (${margin.toFixed(1)}%). Needs improvement.`
-            : `Low margin (${margin.toFixed(1)}%). High construction risk.`
+        message: `${margin.toFixed(1)}% margin level`
       },
       {
-        title: "ROI Check",
-        message:
-          roi >= 20
-            ? `Strong ROI (${roi.toFixed(1)}%).`
-            : roi >= 10
-            ? `Moderate ROI (${roi.toFixed(1)}%).`
-            : `Weak ROI (${roi.toFixed(1)}%).`
+        title: "ROI",
+        message: `${roi.toFixed(1)}% ROI`
       }
     ],
 
     costs: [
       {
-        title: "Total Project Cost",
-        message: `Total cost: R${totalCosts.toFixed(2)}`
-      },
-      {
-        title: "Cost Breakdown",
-        message:
-          `Material: R${material}, Labor: R${laborTotal.toFixed(2)}, Equipment: R${equipmentTotal.toFixed(2)}, Fixed: R${fixedTotal.toFixed(2)}`
-      },
-      {
-        title: "Cost Ratio",
-        message:
-          costRatio > 100
-            ? `Costs exceed contract value (danger).`
-            : `Costs represent ${costRatio.toFixed(1)}% of contract value.`
+        title: "Total Cost",
+        message: `R${totalCosts.toFixed(2)} total project cost`
       }
     ],
 
     operations: [
       {
-        title: "Break-even Analysis",
-        message: `Break-even contract value: R${breakEvenValue.toFixed(2)}`
-      },
-      {
-        title: "Monthly Profit",
-        message: `R${monthlyProfit.toFixed(2)} per month over ${months} months.`
+        title: "Break-even",
+        message: `Break-even value: R${breakEvenValue.toFixed(2)}`
       }
     ],
 
     growth: [
       {
-        title: "Scaling Decision",
+        title: "Growth Potential",
         message:
           profit <= 0
-            ? "Do NOT scale this project."
+            ? "No scaling possible"
             : margin < 15
-            ? "Scaling risky — improve margins first."
-            : "Safe to scale with proper controls."
-      },
-      {
-        title: "Annual Projection",
-        message:
-          annualProfit <= 0
-            ? "Annual loss projected."
-            : `Annual profit projection: R${annualProfit.toFixed(2)}`
+            ? "Limited scaling"
+            : "Strong scaling potential"
       }
     ]
 
@@ -329,12 +321,13 @@ router.post('/construction/project', auth, requireActiveAccess, (req, res) => {
     decision,
     riskLevel,
     advice,
-    flags,
 
+    steps,        // ⭐ FIXED (THIS WAS MISSING)
     insights
   });
 
 });
+
 /* ================= CONSULTING PROJECT ================= */
 router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
   let {
