@@ -1,41 +1,37 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
-const SharedDealSchema = new mongoose.Schema({
-  type: {
-    type: String,
-    required: true
-  },
-
-  inputs: {
-    type: Object,
-    required: true
-  },
-
-  results: {
-    type: Object,
-    required: true
-  },
-
-  permissions: {
-    mode: {
+const SharedDealSchema = new mongoose.Schema(
+  {
+    shareId: {
       type: String,
-      enum: ["view", "edit"],
-      default: "view"
-    }
-  },
-
-  meta: {
-    title: String,
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User"
+      unique: true,
+      index: true
     },
-    createdAt: {
-      type: Date,
-      default: Date.now
+
+    type: String, // construction, manufacturing, consulting, restaurant
+
+    inputs: Object,
+    results: Object,
+
+    permissions: {
+      mode: {
+        type: String,
+        enum: ["view", "edit"],
+        default: "view"
+      },
+      isPublic: {
+        type: Boolean,
+        default: true
+      }
+    },
+
+    meta: {
+      title: String,
+      createdBy: String
     }
-  }
 
-}, { timestamps: true });
+  },
+  { timestamps: true }
+);
 
-module.exports = mongoose.model("SharedDeal", SharedDealSchema);
+export default mongoose.model("SharedDeal", SharedDealSchema);

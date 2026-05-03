@@ -9,7 +9,8 @@ import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import calculatorsRoutes from './routes/calculatorRoutes.js';
-import savedDealsRoutes from './routes/savedDeals.js'; // ✅ ADDED
+import savedDealsRoutes from './routes/savedDeals.js';
+import shareRoutes from './routes/share.js'; // ✅ ADD THIS
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,7 +45,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/calculators', calculatorsRoutes);
-app.use('/api/saved-deals', savedDealsRoutes); // ✅ ADDED HERE
+app.use('/api/saved-deals', savedDealsRoutes);
+app.use('/api/share', shareRoutes);
 
 /* ---------------- START SERVER ---------------- */
 
