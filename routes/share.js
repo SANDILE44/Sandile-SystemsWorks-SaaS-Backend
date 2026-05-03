@@ -2,7 +2,7 @@ import express from "express";
 import {
   createShare,
   getShare
-} from "../controllers/shared.controller.js";
+} from "../controllers/shareController.js";
 
 const router = express.Router();
 
