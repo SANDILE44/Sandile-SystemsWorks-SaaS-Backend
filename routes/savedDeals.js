@@ -1,5 +1,4 @@
 import express from "express";
-import mongoose from "mongoose";
 import SavedDeal from "../models/SavedDeal.js";
 import auth from "../middleware/auth.js";
 
@@ -8,7 +7,7 @@ const router = express.Router();
 /* ================= CREATE SAVED DEAL ================= */
 router.post("/", auth, async (req, res) => {
   try {
-    const { type, inputs, results } = req.body;
+    const { type, inputs, results, clientName } = req.body;
 
     if (!type) {
       return res.status(400).json({ message: "Type is required" });
@@ -17,6 +16,7 @@ router.post("/", auth, async (req, res) => {
     const deal = await SavedDeal.create({
       userId: req.user.id,
       type,
+      clientName: (clientName || "Untitled Project").trim(), // ✅ FIX
       inputs: inputs || {},
       results: results || {}
     });
@@ -66,7 +66,7 @@ router.delete("/:id", auth, async (req, res) => {
 /* ================= UPDATE DEAL ================= */
 router.put("/:id", auth, async (req, res) => {
   try {
-    const { type, inputs, results } = req.body;
+    const { type, inputs, results, clientName } = req.body;
 
     const updated = await SavedDeal.findOneAndUpdate(
       {
@@ -75,6 +75,7 @@ router.put("/:id", auth, async (req, res) => {
       },
       {
         type,
+        clientName: (clientName || "Untitled Project").trim(), // ✅ FIX
         inputs,
         results
       },
@@ -93,5 +94,4 @@ router.put("/:id", auth, async (req, res) => {
   }
 });
 
-/* ================= IMPORTANT FIX ================= */
 export default router;
