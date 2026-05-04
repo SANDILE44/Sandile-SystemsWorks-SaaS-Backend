@@ -13,13 +13,13 @@ router.post("/", auth, async (req, res) => {
       return res.status(400).json({ message: "Type is required" });
     }
 
-    const deal = await SavedDeal.create({
-      userId: req.user.id,
-      type,
-      clientName: (clientName || "Untitled Project").trim(), // ✅ FIX
-      inputs: inputs || {},
-      results: results || {}
-    });
+const deal = await SavedDeal.create({
+  userId: req.user.id,
+  type,
+  clientName: clientName?.trim() || `Project ${Date.now()}`, // 🔥 HERE
+  inputs: inputs || {},
+  results: results || {}
+});
 
     res.status(201).json(deal);
 
@@ -75,7 +75,7 @@ router.put("/:id", auth, async (req, res) => {
       },
       {
         type,
-        clientName: (clientName || "Untitled Project").trim(), // ✅ FIX
+        clientName: clientName?.trim() || `Project ${Date.now()}`, // 🔥 HERE
         inputs,
         results
       },
