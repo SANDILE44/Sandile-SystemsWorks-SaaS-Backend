@@ -19,7 +19,7 @@ function signToken(userId) {
 }
 
 // ====================
-// SIGNUP (3-DAY TRIAL FOR BOTH PRODUCTS)
+// SIGNUP (7-DAY TRIAL FOR BOTH PRODUCTS)
 // ====================
 router.post('/signup', async (req, res) => {
   const { name, email, password } = req.body;
@@ -39,7 +39,8 @@ router.post('/signup', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 10);
 
     const now = Date.now();
-    const trialEnd = new Date(now + 3 * 24 * 60 * 60 * 1000);
+    // CHANGED: 7 * 24 hours * 60 minutes * 60 seconds * 1000ms
+    const trialEnd = new Date(now + 7 * 24 * 60 * 60 * 1000);
 
     const user = await User.create({
       name: name.trim(),
@@ -62,7 +63,7 @@ router.post('/signup', async (req, res) => {
     const token = signToken(user._id);
 
     res.status(201).json({
-      message: 'User registered (3-day trial)',
+      message: 'User registered (7-day trial)', // Updated message
       token,
       user: {
         id: user._id,
@@ -76,7 +77,6 @@ router.post('/signup', async (req, res) => {
     res.status(500).json({ error: 'Signup failed' });
   }
 });
-
 // ====================
 // LOGIN
 // ====================
