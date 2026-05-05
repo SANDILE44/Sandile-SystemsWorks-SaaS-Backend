@@ -12,13 +12,11 @@ const router = express.Router();
 /* =========================
    GOOGLE CLIENT
 ========================= */
-
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 /* =========================
    JWT HELPER
 ========================= */
-
 function signToken(userId) {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
@@ -26,9 +24,8 @@ function signToken(userId) {
 }
 
 /* =========================
-   SIGNUP (3-DAY TRIAL)
+   SIGNUP (7-DAY TRIAL)
 ========================= */
-
 router.post("/signup", async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -38,7 +35,6 @@ router.post("/signup", async (req, res) => {
 
   try {
     const cleanEmail = email.toLowerCase().trim();
-
     const exists = await User.findOne({ email: cleanEmail });
 
     if (exists) {
@@ -47,30 +43,39 @@ router.post("/signup", async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Set Trial for 7 Days (Midnight expiry)
     const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 3);
+    trialEnd.setDate(trialEnd.getDate() + 7);
     trialEnd.setHours(23, 59, 59, 999);
 
     const user = await User.create({
       name: name.trim(),
       email: cleanEmail,
       passwordHash,
-      hasPaid: false,
-      trialEnd,
-      subscriptionEnd: null,
+      subscriptions: {
+        calculators: {
+          status: 'trial',
+          trialEnd,
+        },
+        riskMonitor: {
+          status: 'trial',
+          trialEnd,
+          scansToday: 0,
+          scansResetAt: new Date(),
+        },
+      }
     });
 
     const token = signToken(user._id);
 
     res.status(201).json({
-      message: "Signup successful (3-day trial)",
+      message: "Signup successful (7-day trial)",
       token,
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        hasPaid: user.hasPaid,
-        trialEnd: user.trialEnd,
+        subscriptions: user.subscriptions,
       },
     });
 
@@ -83,13 +88,11 @@ router.post("/signup", async (req, res) => {
 /* =========================
    LOGIN
 ========================= */
-
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
     const cleanEmail = email.toLowerCase().trim();
-
     const user = await User.findOne({ email: cleanEmail });
 
     if (!user) {
@@ -122,9 +125,8 @@ router.post("/login", async (req, res) => {
 });
 
 /* =========================
-   GOOGLE LOGIN
+   GOOGLE LOGIN (7-DAY TRIAL)
 ========================= */
-
 router.post("/google", async (req, res) => {
   try {
     const { token } = req.body;
@@ -139,23 +141,33 @@ router.post("/google", async (req, res) => {
     });
 
     const payload = ticket.getPayload();
-
     const email = payload.email.toLowerCase();
     const name = payload.name;
 
     let user = await User.findOne({ email });
 
     if (!user) {
+      // Set Trial for 7 Days for New Google Users
       const trialEnd = new Date();
-      trialEnd.setDate(trialEnd.getDate() + 3);
-trialEnd.setHours(23,59,59,999);
+      trialEnd.setDate(trialEnd.getDate() + 7);
+      trialEnd.setHours(23, 59, 59, 999);
 
       user = await User.create({
         name,
         email,
-        passwordHash: crypto.randomBytes(32).toString("hex"),
-        hasPaid: false,
-        trialEnd,
+        passwordHash: crypto.randomBytes(32).toString("hex"), // Placeholder for Google users
+        subscriptions: {
+          calculators: {
+            status: 'trial',
+            trialEnd,
+          },
+          riskMonitor: {
+            status: 'trial',
+            trialEnd,
+            scansToday: 0,
+            scansResetAt: new Date(),
+          },
+        }
       });
     }
 
@@ -167,6 +179,7 @@ trialEnd.setHours(23,59,59,999);
         id: user._id,
         name: user.name,
         email: user.email,
+        subscriptions: user.subscriptions,
       },
     });
 
@@ -179,23 +192,19 @@ trialEnd.setHours(23,59,59,999);
 /* =========================
    PROFILE (AUTH REQUIRED)
 ========================= */
-
 router.get("/profile", auth, async (req, res) => {
-
   try {
-
     const user = await User.findById(req.user.id).select(
       "name email subscriptions recentCalculators"
     );
 
+    if (!user) return res.status(404).json({ error: "User not found" });
+
     res.json({ user });
-
   } catch (err) {
-
+    console.error("Profile Fetch Error:", err);
     res.status(500).json({ error: "Failed to fetch profile" });
-
   }
-
 });
 
 export default router;
