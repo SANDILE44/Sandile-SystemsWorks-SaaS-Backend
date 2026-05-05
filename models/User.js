@@ -49,7 +49,8 @@ const userSchema = new mongoose.Schema(
         type: productSubscriptionSchema,
         default: () => ({
           status: 'trial',
-          trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+          // UPDATED: Changed to 7 days
+          trialEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         }),
       },
 
@@ -57,7 +58,8 @@ const userSchema = new mongoose.Schema(
         type: productSubscriptionSchema,
         default: () => ({
           status: 'trial',
-          trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+          // UPDATED: Changed to 7 days
+          trialEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
           scansToday: 0,
           scansResetAt: new Date(),
         }),
