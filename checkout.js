@@ -15,7 +15,7 @@ router.post('/checkout', auth, async (req, res) => {
     const response = await axios.post(
       'https://payments.yoco.com/api/checkouts',
       {
-        amount: 1249900, 
+        amount: 699900, 
         currency: 'ZAR',
         successUrl: process.env.FRONTEND_SUCCESS_URL,
         cancelUrl: process.env.FRONTEND_CANCEL_URL,
