@@ -15,7 +15,7 @@ router.post('/checkout', auth, async (req, res) => {
     }
 
     // R12,499.00 in cents
-    const amount = 1249900; 
+    const amount = 699900; 
 
     const response = await axios.post(
       'https://payments.yoco.com/api/checkouts',
