@@ -957,6 +957,117 @@ router.post('/logistics/business', auth, requireActiveAccess, (req, res) => {
 
   }
 
+    /* =====================================================
+     FINANCIAL SUMMARY
+  ===================================================== */
+
+   const financialSummary = [
+  {
+    title: "Revenue vs Costs",
+    message:
+      profit >= 0
+        ? `Revenue of R${totalRevenue.toFixed(2)} covers total costs of R${totalCosts.toFixed(2)}.`
+        : `Revenue is below operating costs by R${Math.abs(profit).toFixed(2)}.`
+  },
+  {
+    title: "Monthly Profit",
+    message:
+      profit >= 0
+        ? `Monthly profit is R${profit.toFixed(2)}.`
+        : `Monthly loss is R${Math.abs(profit).toFixed(2)}.`
+  },
+  {
+    title: "Annual Projection",
+    message:
+      annualProfit >= 0
+        ? `Projected annual profit is R${annualProfit.toFixed(2)}.`
+        : `Projected annual loss is R${Math.abs(annualProfit).toFixed(2)}.`
+  }
+];
+
+      
+  /* =====================================================
+     PROFITABILITY
+  ===================================================== */
+const profitability = [
+  {
+    title: "Profit Margin",
+    message: `${margin.toFixed(2)}%`
+  },
+  {
+    title: "ROI",
+    message: `${roi.toFixed(2)}%`
+  },
+  {
+    title: "Profit per Shipment",
+    message: `R${profitPerShipment.toFixed(2)}`
+  }
+];
+
+    /* =====================================================
+     COST ANALYSIS
+  ===================================================== */
+
+   const costAnalysis = [
+  {
+    title: "Largest Cost",
+    message: `${largestCost.name} accounts for ${largestCost.percent.toFixed(1)}% of total costs.`
+  },
+  {
+    title: "Fuel",
+    message: `${fuelPercent.toFixed(1)}%`
+  },
+  {
+    title: "Labour",
+    message: `${laborPercent.toFixed(1)}%`
+  },
+  {
+    title: "Maintenance",
+    message: `${maintenancePercent.toFixed(1)}%`
+  },
+  {
+    title: "Fixed Costs",
+    message: `${fixedPercent.toFixed(1)}%`
+  }
+];
+
+    /* =====================================================
+     PRICING STRATEGY
+  ===================================================== */
+
+   const pricingStrategy = [
+  {
+    title: "Current Price",
+    message: `R${revenuePer.toFixed(2)} per shipment`
+  },
+  {
+    title: "Recommended Price",
+    message: `R${recommendedPricePerShipment.toFixed(2)} per shipment`
+  }
+];
+
+   const breakEvenAnalysis = [
+  {
+    title: "Break-even Shipments",
+    message: `${breakEvenShipments} shipments required each month.`
+  }
+];
+
+   const annualOutlook = [
+  {
+    title: "12 Month Projection",
+    message:
+      annualProfit >= 0
+        ? `Projected annual profit: R${annualProfit.toFixed(2)}`
+        : `Projected annual loss: R${Math.abs(annualProfit).toFixed(2)}`
+  }
+];
+   const flags = {
+  loss: profit <= 0,
+  lowMargin: margin < 10,
+  highRisk: riskLevel === "High",
+  expansionReady: margin >= 20 && profit > 0
+};
   /* =====================================================
      PRIORITY ACTIONS
   ===================================================== */
