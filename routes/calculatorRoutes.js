@@ -1004,6 +1004,21 @@ const profitability = [
   }
 ];
 
+     /* =====================================================
+     LARGEST COST DRIVER
+  ===================================================== */
+
+  const costs = [
+      { name: "Fuel", value: fuel, percent: fuelPercent },
+      { name: "Labor", value: labor, percent: laborPercent },
+      { name: "Maintenance", value: maintenance, percent: maintenancePercent },
+      { name: "Fixed Costs", value: fixed, percent: fixedPercent }
+  ];
+
+  costs.sort((a, b) => b.value - a.value);
+
+  const largestCost = costs[0];
+   
     /* =====================================================
      COST ANALYSIS
   ===================================================== */
@@ -1108,21 +1123,7 @@ const profitability = [
 
   }
 
-  /* =====================================================
-     LARGEST COST DRIVER
-  ===================================================== */
 
-  const costs = [
-      { name: "Fuel", value: fuel, percent: fuelPercent },
-      { name: "Labor", value: labor, percent: laborPercent },
-      { name: "Maintenance", value: maintenance, percent: maintenancePercent },
-      { name: "Fixed Costs", value: fixed, percent: fixedPercent }
-  ];
-
-  costs.sort((a, b) => b.value - a.value);
-
-  const largestCost = costs[0];
-   
   /* =====================================================
      STEP-BY-STEP GUIDANCE
   ===================================================== */
@@ -1218,14 +1219,15 @@ res.json({
   fixedPercent,
 
   // Decision Engine
-  decision: {
-    status,
-    riskLevel,
-    safetyStatus,
-    advice,
-    recommendedPricePerShipment
-  },
-
+decision: {
+  status,
+  headline,
+  riskLevel,
+  safetyStatus,
+  advice,
+  recommendedPricePerShipment
+},
+   
   // Sections shown directly
   financialSummary,
   profitability,
@@ -1236,6 +1238,9 @@ res.json({
   pricingStrategy,
   breakEvenAnalysis,
   annualOutlook,
+
+   // Existing detailed walkthrough
+steps,
 
   // Flags
   flags
