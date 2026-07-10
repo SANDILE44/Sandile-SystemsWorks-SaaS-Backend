@@ -801,51 +801,217 @@ router.post('/it/services', auth, requireActiveAccess, (req, res) => {
 ===================================================== */
 router.post('/logistics/business', auth, requireActiveAccess, (req, res) => {
 
-  const shipments    = Math.max(0, Math.floor(toNum(req.body.shipments)));
-  const revenuePer   = Math.max(0, toNum(req.body.revenuePer));
-  const fuel         = Math.max(0, toNum(req.body.fuel));
-  const labor        = Math.max(0, toNum(req.body.labor));
-  const maintenance  = Math.max(0, toNum(req.body.maintenance));
-  const fixed        = Math.max(0, toNum(req.body.fixed));
+  /* =====================================================
+     INPUTS
+  ===================================================== */
 
-  const totalRevenue      = shipments * revenuePer;
-  const totalCosts        = fuel + labor + maintenance + fixed;
-  const profit            = totalRevenue - totalCosts;
-  const costPerShipment   = shipments > 0 ? totalCosts / shipments : 0;
-  const profitPerShipment = shipments > 0 ? profit / shipments : 0;
-  const margin            = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
-  const roi               = totalCosts > 0 ? (profit / totalCosts) * 100 : 0;
-  const breakEvenShipments = revenuePer > 0 ? Math.ceil(totalCosts / revenuePer) : 0;
-  const annualProfit      = profit * 12;
+  const shipments   = Math.max(0, Math.floor(toNum(req.body.shipments)));
+  const revenuePer  = Math.max(0, toNum(req.body.revenuePer));
+  const fuel        = Math.max(0, toNum(req.body.fuel));
+  const labor       = Math.max(0, toNum(req.body.labor));
+  const maintenance = Math.max(0, toNum(req.body.maintenance));
+  const fixed       = Math.max(0, toNum(req.body.fixed));
 
-  const fuelPercent        = totalCosts > 0 ? (fuel / totalCosts) * 100 : 0;
-  const laborPercent       = totalCosts > 0 ? (labor / totalCosts) * 100 : 0;
-  const maintenancePercent = totalCosts > 0 ? (maintenance / totalCosts) * 100 : 0;
-  const fixedPercent       = totalCosts > 0 ? (fixed / totalCosts) * 100 : 0;
+  /* =====================================================
+     CORE CALCULATIONS
+  ===================================================== */
+
+  const totalRevenue = shipments * revenuePer;
+
+  const totalCosts =
+      fuel +
+      labor +
+      maintenance +
+      fixed;
+
+  const profit = totalRevenue - totalCosts;
+
+  const costPerShipment =
+      shipments > 0
+          ? totalCosts / shipments
+          : 0;
+
+  const profitPerShipment =
+      shipments > 0
+          ? profit / shipments
+          : 0;
+
+  const margin =
+      totalRevenue > 0
+          ? (profit / totalRevenue) * 100
+          : 0;
+
+  const roi =
+      totalCosts > 0
+          ? (profit / totalCosts) * 100
+          : 0;
+
+  const breakEvenShipments =
+      revenuePer > 0
+          ? Math.ceil(totalCosts / revenuePer)
+          : 0;
+
+  const annualProfit = profit * 12;
+
+  /* =====================================================
+     COST BREAKDOWN
+  ===================================================== */
+
+  const fuelPercent =
+      totalCosts > 0
+          ? (fuel / totalCosts) * 100
+          : 0;
+
+  const laborPercent =
+      totalCosts > 0
+          ? (labor / totalCosts) * 100
+          : 0;
+
+  const maintenancePercent =
+      totalCosts > 0
+          ? (maintenance / totalCosts) * 100
+          : 0;
+
+  const fixedPercent =
+      totalCosts > 0
+          ? (fixed / totalCosts) * 100
+          : 0;
+
+  /* =====================================================
+     PRICING
+  ===================================================== */
 
   const targetMargin = 20;
-  const recommendedPricePerShipment = costPerShipment > 0
-    ? costPerShipment / (1 - targetMargin / 100)
-    : 0;
 
-  let status = 'Break-even';
-  if (profit > 0) status = 'Profitable';
-  if (profit < 0) status = 'Loss';
+  const recommendedPricePerShipment =
+      costPerShipment > 0
+          ? costPerShipment / (1 - targetMargin / 100)
+          : 0;
 
-  let riskLevel = 'Low';
-  if (profit < 0) riskLevel = 'High';
-  else if (margin < 8) riskLevel = 'High';
-  else if (margin < 15) riskLevel = 'Medium';
+  /* =====================================================
+     DECISION ENGINE
+  ===================================================== */
 
-  let safetyStatus = 'Healthy';
-  if (profit < 0) safetyStatus = 'Critical';
-  else if (margin < 10) safetyStatus = 'At Risk';
+  let status = "🟢 Strong";
+  let riskLevel = "Low";
+  let safetyStatus = "Healthy";
+  let headline = "Operations are financially healthy.";
+  let advice = "Maintain pricing discipline and continue monitoring costs.";
 
-  let advice = 'Operations stable. Maintain margin discipline.';
-  if (profit < 0) advice = 'Operating at a loss. Increase pricing or reduce largest cost driver immediately.';
-  else if (margin < 10) advice = 'Margins are thin. Small cost increases could wipe out profit.';
-  else if (margin >= 20) advice = 'Strong margin zone. You have operational buffer and pricing power.';
+  if (profit <= 0) {
 
+      status = "❌ Loss";
+      riskLevel = "High";
+      safetyStatus = "Critical";
+
+      headline =
+          "Operations are losing money.";
+
+      advice =
+          "Increase pricing immediately or reduce your largest operating cost.";
+
+  }
+  else if (margin < 10) {
+
+      status = "⚠ Dangerous";
+
+      riskLevel = "High";
+
+      safetyStatus = "At Risk";
+
+      headline =
+          "Profit exists but margins are dangerously thin.";
+
+      advice =
+          "Increase your rate per shipment and reduce operating costs before unexpected expenses remove all profit.";
+
+  }
+  else if (margin < 20) {
+
+      status = "🟡 Moderate";
+
+      riskLevel = "Medium";
+
+      safetyStatus = "Watch";
+
+      headline =
+          "Business is profitable but has limited safety margin.";
+
+      advice =
+          "Focus on increasing shipment pricing, reducing costs or increasing shipment volume.";
+
+  }
+  else {
+
+      status = "✅ Strong";
+
+      riskLevel = "Low";
+
+      safetyStatus = "Healthy";
+
+      headline =
+          "Operations are performing well with strong profitability.";
+
+      advice =
+          "Maintain current pricing strategy and evaluate opportunities for expansion.";
+
+  }
+
+  /* =====================================================
+     PRIORITY ACTIONS
+  ===================================================== */
+
+  const priorityActions = [];
+
+  if (profit <= 0) {
+
+      priorityActions.push(
+          `Increase shipment price to at least R${recommendedPricePerShipment.toFixed(2)}.`
+      );
+
+      priorityActions.push(
+          "Reduce your largest operating cost by at least 10%."
+      );
+
+      priorityActions.push(
+          `Increase monthly shipments above ${breakEvenShipments}.`
+      );
+
+  } else {
+
+      if (margin < 20) {
+
+          priorityActions.push(
+              `Increase pricing toward R${recommendedPricePerShipment.toFixed(2)} per shipment.`
+          );
+
+      }
+
+      priorityActions.push(
+          "Continue monitoring fuel, maintenance and labour costs."
+      );
+
+      priorityActions.push(
+          "Review monthly performance before expanding fleet capacity."
+      );
+
+  }
+
+  /* =====================================================
+     LARGEST COST DRIVER
+  ===================================================== */
+
+  const costs = [
+      { name: "Fuel", value: fuel, percent: fuelPercent },
+      { name: "Labor", value: labor, percent: laborPercent },
+      { name: "Maintenance", value: maintenance, percent: maintenancePercent },
+      { name: "Fixed Costs", value: fixed, percent: fixedPercent }
+  ];
+
+  costs.sort((a, b) => b.value - a.value);
+
+  const largestCost = costs[0];
+   
   /* =====================================================
      STEP-BY-STEP GUIDANCE
   ===================================================== */
@@ -921,28 +1087,48 @@ router.post('/logistics/business', auth, requireActiveAccess, (req, res) => {
       : `Low risk. Operations are financially sound with ${margin.toFixed(2)}% margin. Continue monitoring fuel and maintenance costs.`
   });
 
-  res.json({
-    shipments,
-    totalRevenue,
-    totalCosts,
-    profit,
-    costPerShipment,
-    profitPerShipment,
-    margin,
-    roi,
-    breakEvenShipments,
-    annualProfit,
-    fuelPercent,
-    laborPercent,
-    maintenancePercent,
-    fixedPercent,
+res.json({
+  // Core Metrics
+  shipments,
+  totalRevenue,
+  totalCosts,
+  profit,
+  costPerShipment,
+  profitPerShipment,
+  margin,
+  roi,
+  breakEvenShipments,
+  annualProfit,
+
+  // Cost Breakdown
+  fuelPercent,
+  laborPercent,
+  maintenancePercent,
+  fixedPercent,
+
+  // Decision Engine
+  decision: {
     status,
     riskLevel,
-    recommendedPricePerShipment,
     safetyStatus,
     advice,
-    steps
-  });
+    recommendedPricePerShipment
+  },
+
+  // Sections shown directly
+  financialSummary,
+  profitability,
+
+  // Dropdown sections
+  priorityActions,
+  costAnalysis,
+  pricingStrategy,
+  breakEvenAnalysis,
+  annualOutlook,
+
+  // Flags
+  flags
+});
 });
 
 
