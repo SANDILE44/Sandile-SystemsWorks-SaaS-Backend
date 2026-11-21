@@ -333,30 +333,21 @@ router.post('/construction/project', auth, requireActiveAccess, (req, res) => {
 
 /* ================= CONSULTING PROJECT ================= */
 router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
-  let {
-    hours,
-    rate,
-    expenses,
-    labor,
-    fixed,
-    discountPct,
-    otHours,
-    otRate,
-    variableCosts,
-    contingencyPct,
-  } = req.body;
+  const num = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
 
-  /* ================= SAFE CONVERSION ================= */
-  hours = Number(hours) || 0;
-  rate = Number(rate) || 0;
-  expenses = Number(expenses) || 0;
-  labor = Number(labor) || 0;
-  fixed = Number(fixed) || 0;
-  discountPct = Number(discountPct) || 0;
-  otHours = Number(otHours) || 0;
-  otRate = Number(otRate) || 0;
-  variableCosts = Number(variableCosts) || 0;
-  contingencyPct = Number(contingencyPct) || 0;
+  const hours = Math.max(0, num(req.body.hours));
+  const rate = Math.max(0, num(req.body.rate));
+  const expenses = Math.max(0, num(req.body.expenses));
+  const labor = Math.max(0, num(req.body.labor));
+  const fixed = Math.max(0, num(req.body.fixed));
+  const variableCosts = Math.max(0, num(req.body.variableCosts));
+  const discountPct = Math.min(100, Math.max(0, num(req.body.discountPct)));
+  const otHours = Math.max(0, num(req.body.otHours));
+  const otRate = Math.max(0, num(req.body.otRate));
+  const contingencyPct = Math.max(0, num(req.body.contingencyPct));
 
   /* ================= REVENUE ================= */
   const baseRevenue = hours * rate;
@@ -391,77 +382,60 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
   let riskLevel = 'Medium';
   let advice = 'Monitor costs and hours closely before committing.';
 
-  const steps = [];
+  const steps = [
+    `Revenue after discount is R${revenueAfterDiscount.toFixed(2)}, total costs are R${totalCosts.toFixed(2)}.`
+  ];
 
-  // Step 1
-  steps.push(
-    `Revenue after discount is R${revenueAfterDiscount.toFixed(
-      2
-    )}, total costs are R${totalCosts.toFixed(2)}.`
-  );
-
-  // LOSS CASE
-  if (profit <= 0) {
+  if (profit < 0) {
     decision = '❌ Do Not Take';
     riskLevel = 'High';
     advice = 'Project is unprofitable. Adjust pricing or costs.';
 
-    steps.push(
-      `Profit is negative: R${profit.toFixed(2)}. You lose money.`
-    );
+    steps.push(`Projected net loss: R${profit.toFixed(2)}.`);
 
     const suggestedRate =
-      hours > 0 ? Math.ceil(totalCosts / hours * 1.15) : rate;
+      hours > 0 ? Math.ceil((totalCosts / hours) * 1.15) : rate;
+    steps.push(`Suggested hourly rate to cover costs + buffer: R${suggestedRate}`);
 
-    steps.push(
-      `Suggested hourly rate to break even + profit: R${suggestedRate}`
-    );
-
-    const suggestedDiscount = Math.max(discountPct - 10, 0);
-    steps.push(
-      `Reduce discount from ${discountPct}% to ${suggestedDiscount}%`
-    );
-  }
-
-  // LOW MARGIN
-  else if (margin < 10) {
+    if (discountPct > 0) {
+      const suggestedDiscount = Math.max(discountPct - 10, 0);
+      steps.push(`Consider reducing discount from ${discountPct}% to ${suggestedDiscount}%.`);
+    }
+  } else if (profit === 0) {
+    decision = '⚠ Break-even';
+    riskLevel = 'High';
+    advice = 'Zero profit buffer. Renegotiate rate or reduce costs before starting.';
+    steps.push('Deal breaks even with no net profit cushion.');
+  } else if (margin < 20) {
     decision = '⚠ High Risk';
     riskLevel = 'High';
-    advice = 'Low margin project. Very sensitive to overruns.';
+    advice = 'Thin margin. Very sensitive to scope creep or cost overruns.';
 
-    steps.push(`Margin is low: ${margin.toFixed(2)}%`);
-
+    steps.push(`Net margin is ${margin.toFixed(2)}%.`);
     if (variableCosts > 0) {
-      steps.push(
-        `Reduce variable costs (currently R${variableCosts})`
-      );
+      steps.push(`Look to reduce variable costs (currently R${variableCosts.toFixed(2)}).`);
     }
-  }
-
-  // MEDIUM
-  else if (margin < 20) {
+    if (otHours > 0) {
+      steps.push(`Monitor overtime (${otHours} hrs @ R${otRate}/hr).`);
+    }
+  } else if (margin < 40) {
     decision = '🟡 Moderate Risk';
     riskLevel = 'Medium';
-    advice = 'Acceptable but monitor closely.';
+    advice = 'Acceptable margin, but tighten scope and track hours closely.';
 
-    steps.push(`Margin is moderate: ${margin.toFixed(2)}%`);
-    steps.push(`Track overtime: ${otHours} hours`);
-  }
-
-  // GOOD
-  else {
+    steps.push(`Net margin is ${margin.toFixed(2)}%.`);
+    if (otHours > 0) {
+      steps.push(`Track overtime hours: ${otHours} hrs.`);
+    }
+  } else {
     decision = '✅ Strong Project';
     riskLevel = 'Low';
-    advice = 'Healthy margin. Good to proceed.';
+    advice = 'Healthy margin with solid buffer. Good to proceed.';
 
-    steps.push(`Strong margin: ${margin.toFixed(2)}%`);
-    steps.push(`Opportunity to negotiate higher rate.`);
+    steps.push(`Strong net margin: ${margin.toFixed(2)}%.`);
   }
 
-  // Break-even
-  steps.push(
-    `Break-even hours: ${breakevenHours.toFixed(2)}`
-  );
+  steps.push(`Break-even hours (at standard rate): ${breakevenHours.toFixed(2)}`);
 
   /* ================= RESPONSE ================= */
   res.json({
@@ -486,7 +460,7 @@ router.post('/consulting/project', auth, requireActiveAccess, (req, res) => {
     riskLevel,
     advice,
 
-    steps,
+    steps
   });
 });
 
